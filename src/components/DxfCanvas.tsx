@@ -8,14 +8,14 @@ type Props = {
 function layerColor(layer: string) {
   const value = layer.toLowerCase();
 
-  if (value.includes("wall")) return "#d7dde6";
-  if (value.includes("door")) return "#74c0fc";
-  if (value.includes("glaz") || value.includes("window")) return "#63e6be";
-  if (value.includes("lite") || value.includes("light")) return "#ffd43b";
-  if (value.includes("furn")) return "#b197fc";
-  if (value.includes("anno") || value.includes("text")) return "#adb5bd";
+  if (value.includes("wall")) return "var(--dxf-wall)";
+  if (value.includes("door")) return "var(--dxf-door)";
+  if (value.includes("glaz") || value.includes("window")) return "var(--dxf-window)";
+  if (value.includes("lite") || value.includes("light")) return "var(--dxf-light)";
+  if (value.includes("furn")) return "var(--dxf-furniture)";
+  if (value.includes("anno") || value.includes("text")) return "var(--dxf-annotation)";
 
-  return "#9aa7b5";
+  return "var(--dxf-default)";
 }
 
 export default function DxfCanvas({ drawing }: Props) {
@@ -104,7 +104,7 @@ export default function DxfCanvas({ drawing }: Props) {
             y1={py}
             x2={px + size}
             y2={py}
-            stroke="#ff922b"
+            stroke="var(--dxf-insert)"
             strokeWidth={strokeWidth}
             vectorEffect="non-scaling-stroke"
           />
@@ -132,7 +132,7 @@ export default function DxfCanvas({ drawing }: Props) {
           key={index}
           x={x(primitive.position.x)}
           y={y(primitive.position.y)}
-          fill="#f1f3f5"
+          fill="var(--dxf-text)"
           fontSize={fontSize}
           fontFamily="Arial, sans-serif"
         >
@@ -153,7 +153,7 @@ export default function DxfCanvas({ drawing }: Props) {
       role="img"
       aria-label="DXF drawing"
     >
-      <rect width={bounds.width} height={bounds.height} fill="#0f141b" />
+      <rect width={bounds.width} height={bounds.height} fill="var(--dxf-background)" />
       {drawing.primitives.map(renderPrimitive)}
     </svg>
   );
