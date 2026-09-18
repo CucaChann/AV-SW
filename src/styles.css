@@ -900,3 +900,11 @@ button:disabled {
 .inspector-tabs button {
   min-width: 62px;
 }
+
+
+.export-bom-button {
+  width: 100%;
+  margin-top: 10px;
+  background: #17212c;
+  border-color: #33465a;
+}
