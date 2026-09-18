@@ -1,0 +1,442 @@
+import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
+
+export type ProjectTool =
+  | "qtl"
+  | "network"
+  | "audio"
+  | "video"
+  | "cabling"
+  | "budget"
+  | "library"
+  | "validate";
+
+export type DesignTier = "Core" | "Refined" | "Signature";
+
+export type QtlRun = {
+  id: string;
+  room: string;
+  application: "Cove" | "Millwork" | "Shelf" | "Toe Kick" | "Wall" | "Other";
+  lengthFt: number;
+  widthIn: number;
+  depthIn: number;
+  wattsPerFt: number;
+  voltage: 24 | 48;
+  cct: "2700K" | "3000K" | "3500K" | "4000K" | "TBD";
+  environment: "Dry" | "Damp" | "Wet";
+  feed: "Left" | "Right" | "Center" | "TBD";
+  dimming: "Phase" | "0-10V" | "DALI" | "DMX" | "On/Off" | "TBD";
+  reservePct: number;
+  selectedFamily: string;
+  maxRunFt: number;
+  notes: string;
+};
+
+export type NetworkPlan = {
+  buildings: number;
+  floors: number;
+  wanGbps: number;
+  wiredEndpoints: number;
+  poeEndpoints: number;
+  cameras: number;
+  indoorAps: number;
+  outdoorAps: number;
+  targetBackboneGbps: number;
+  rackLocations: number;
+  targetPlatform: "UniFi" | "Mixed / Existing";
+  notes: string;
+};
+
+export type AudioZone = {
+  id: string;
+  room: string;
+  purpose: "Distributed Audio" | "TV / Casual" | "Critical Music" | "Home Theater" | "Outdoor";
+  speakerCount: number;
+  speakerType: "In-Ceiling" | "In-Wall" | "Invisible" | "Passive Soundbar" | "On-Wall" | "Outdoor";
+  amplification: "Sonos Amp" | "AVR / Marantz" | "DSP / Multi-Channel Amp" | "Powered Speaker" | "TBD";
+  control: "Savant" | "Sonos" | "Native App" | "Mixed" | "TBD";
+  subwoofer: boolean;
+  notes: string;
+};
+
+export type VideoChain = {
+  id: string;
+  room: string;
+  displayBrand: "Sony" | "Samsung" | "Other" | "TBD";
+  displayModel: string;
+  source: "Apple TV" | "Cable / Satellite" | "Blu-ray" | "Local / Streaming Apps" | "None";
+  control: "Savant IP" | "Savant IR" | "CEC" | "Native Remote" | "Other" | "TBD";
+  audio: "Leon Passive Soundbar" | "Sonos Arc" | "AVR / Surround" | "TV Audio" | "Other" | "TBD";
+  transport: "HDMI" | "Fiber HDMI" | "HDBaseT / Extender" | "Local";
+  network: boolean;
+  mount: "Fixed" | "Articulating" | "Future Automation" | "TBD";
+  notes: string;
+};
+
+export type CableType =
+  | "CAT6A"
+  | "CAT6"
+  | "Fiber OM4"
+  | "RG6"
+  | "14/2 Speaker"
+  | "14/4 Speaker"
+  | "16/2 Speaker"
+  | "16/4 Speaker"
+  | "18/2"
+  | "18/4"
+  | "Lutron / Control Cable"
+  | "Shade Power / Control"
+  | "HDMI / Fiber Pathway"
+  | "Other";
+
+export type CableRun = {
+  id: string;
+  from: string;
+  to: string;
+  cableType: CableType;
+  measuredFt: number;
+  verticalAllowanceFt: number;
+  serviceLoopPct: number;
+  wastePct: number;
+  quantity: number;
+  notes: string;
+};
+
+export type BudgetPlan = {
+  total: number;
+  tier: DesignTier;
+  allocations: Record<SystemName, number>;
+  notes: string;
+};
+
+export type ManufacturerSummary = {
+  name: string;
+  categories: string[];
+  focus: string;
+};
+
+export type ProjectToolsState = {
+  qtlRuns: QtlRun[];
+  network: NetworkPlan;
+  audioZones: AudioZone[];
+  videoChains: VideoChain[];
+  cableRuns: CableRun[];
+  budget: BudgetPlan;
+};
+
+export type ValidationIssue = {
+  id: string;
+  severity: "Blocker" | "Warning" | "Info";
+  system: string;
+  message: string;
+};
+
+const systemAllocation: Record<SystemName, number> = {
+  Lighting: 0,
+  Lutron: 0,
+  QTL: 0,
+  Shades: 0,
+  Network: 0,
+  Audio: 0,
+  Video: 0,
+  Infrastructure: 0,
+};
+
+export const DEFAULT_TOOLS_STATE: ProjectToolsState = {
+  qtlRuns: [],
+  network: {
+    buildings: 1,
+    floors: 1,
+    wanGbps: 1,
+    wiredEndpoints: 12,
+    poeEndpoints: 6,
+    cameras: 0,
+    indoorAps: 2,
+    outdoorAps: 0,
+    targetBackboneGbps: 2.5,
+    rackLocations: 1,
+    targetPlatform: "UniFi",
+    notes: "",
+  },
+  audioZones: [],
+  videoChains: [],
+  cableRuns: [],
+  budget: {
+    total: 25000,
+    tier: "Refined",
+    allocations: systemAllocation,
+    notes: "",
+  },
+};
+
+export const MANUFACTURERS: ManufacturerSummary[] = [
+  { name: "Lutron", categories: ["Lighting Control", "Shades", "Ketra"], focus: "Controls, keypads, load control, processors, shades, lighting." },
+  { name: "DMF Lighting", categories: ["Architectural Lighting"], focus: "Downlights, adjustable, wall-wash, retrofit and new construction." },
+  { name: "QTL", categories: ["Linear Lighting"], focus: "Cove, millwork, shelf, toe-kick and architectural linear systems." },
+  { name: "Ubiquiti / UniFi", categories: ["Network", "Wi-Fi", "Protect", "Access"], focus: "Gateway, switching, APs, cameras, access control and rack ecosystem." },
+  { name: "Leon Speakers", categories: ["Custom Audio", "Soundbars"], focus: "Custom-width passive soundbars and architectural audio." },
+  { name: "Sonance", categories: ["Architectural Audio", "Invisible", "Outdoor"], focus: "In-ceiling, in-wall, invisible, outdoor and subwoofer solutions." },
+  { name: "James by Sonance", categories: ["Custom Soundbars", "Small Aperture", "Subwoofers"], focus: "High-performance architectural and custom-length audio." },
+  { name: "K-array", categories: ["Architectural Audio", "Luxury Audio"], focus: "Discreet line-source, flexible arrays, subs and amplifier ecosystem." },
+  { name: "KSCAPE", categories: ["Audio + Lighting"], focus: "Integrated architectural rail combining lighting and audio." },
+  { name: "Amina", categories: ["Invisible Audio"], focus: "Plaster-over invisible speakers and subwoofers." },
+  { name: "Wisdom Audio", categories: ["Cinema", "Architectural Audio"], focus: "High-end planar / line-source architectural cinema solutions." },
+  { name: "Stealth Acoustics", categories: ["Invisible Audio"], focus: "Invisible speakers and subwoofers." },
+  { name: "Origin Acoustics", categories: ["Architectural Audio"], focus: "In-ceiling, in-wall and outdoor architectural audio." },
+  { name: "Theory Audio Design", categories: ["Cinema", "Soundbars", "DSP"], focus: "High-output cinema and controller-driven loudspeaker systems." },
+  { name: "Trinnov", categories: ["Cinema Processor", "Calibration"], focus: "Immersive audio processing, room optimization and calibration." },
+  { name: "StormAudio", categories: ["Cinema Processor"], focus: "Immersive cinema processing, bass management and room correction." },
+  { name: "Marantz", categories: ["AVR", "Cinema"], focus: "AV receivers and surround processing for residential systems." },
+  { name: "Sonos", categories: ["Streaming Audio", "Amplification"], focus: "Simple client-facing streaming zones, amps and soundbars." },
+  { name: "Savant", categories: ["Control", "AV Integration"], focus: "Control platform, remotes, IP/IR device integration and user experience." },
+  { name: "Future Automation", categories: ["Mounting", "Backboxes"], focus: "Display mounts, recessed boxes and motorized solutions." },
+  { name: "TRUFIG", categories: ["Flush Integration"], focus: "Architectural flush mounting and finish coordination." },
+  { name: "IPORT", categories: ["Control Interface"], focus: "PoE-powered iPad mounts and dedicated control interfaces." },
+  { name: "Blaze by Sonance", categories: ["Amplification", "DSP"], focus: "Multi-channel DSP amplification and preset-driven systems." },
+  { name: "Sony", categories: ["Video"], focus: "Premium display options and integration targets." },
+  { name: "Samsung", categories: ["Video"], focus: "Premium display options including design-oriented panels." },
+  { name: "Apple", categories: ["Video Source"], focus: "Apple TV and client-facing streaming source integration." },
+];
+
+function uid(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function newQtlRun(): QtlRun {
+  return {
+    id: uid("qtl"),
+    room: "",
+    application: "Millwork",
+    lengthFt: 10,
+    widthIn: 1,
+    depthIn: 1,
+    wattsPerFt: 4,
+    voltage: 24,
+    cct: "3000K",
+    environment: "Dry",
+    feed: "TBD",
+    dimming: "0-10V",
+    reservePct: 20,
+    selectedFamily: "TBD / Select from QTL library",
+    maxRunFt: 0,
+    notes: "",
+  };
+}
+
+export function qtlRunPower(run: QtlRun) {
+  return Math.max(0, run.lengthFt * run.wattsPerFt);
+}
+
+export function qtlDriverMinimum(run: QtlRun) {
+  const load = qtlRunPower(run);
+  const reserve = Math.min(Math.max(run.reservePct, 0), 80) / 100;
+  if (load <= 0 || reserve >= 1) return 0;
+  return Math.ceil((load / (1 - reserve)) / 10) * 10;
+}
+
+export function qtlRunWarnings(run: QtlRun) {
+  const warnings: string[] = [];
+  if (!run.room.trim()) warnings.push("Room / location is not assigned.");
+  if (run.lengthFt <= 0) warnings.push("Run length must be greater than zero.");
+  if (run.wattsPerFt <= 0) warnings.push("Watts/ft is required for load calculation.");
+  if (run.maxRunFt > 0 && run.lengthFt > run.maxRunFt) {
+    warnings.push("Run exceeds the entered manufacturer maximum; split feeds/runs or change product.");
+  }
+  if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
+  if (run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
+  return warnings;
+}
+
+export function newAudioZone(): AudioZone {
+  return {
+    id: uid("audio"),
+    room: "",
+    purpose: "Distributed Audio",
+    speakerCount: 2,
+    speakerType: "In-Ceiling",
+    amplification: "Sonos Amp",
+    control: "Sonos",
+    subwoofer: false,
+    notes: "",
+  };
+}
+
+export function audioZoneWarnings(zone: AudioZone) {
+  const warnings: string[] = [];
+  if (!zone.room.trim()) warnings.push("Room is not assigned.");
+  if (zone.speakerCount <= 0) warnings.push("Speaker quantity must be greater than zero.");
+  if (zone.amplification === "TBD" && zone.speakerType !== "Powered Speaker") {
+    warnings.push("Passive speaker zone requires an amplification strategy.");
+  }
+  if (zone.speakerCount > 4 && zone.amplification === "Sonos Amp") {
+    warnings.push("High speaker count on one simple zone: verify impedance, wiring topology and amplifier load.");
+  }
+  if (zone.purpose === "Home Theater" && zone.amplification === "Sonos Amp") {
+    warnings.push("Home theater should be reviewed as a dedicated surround/processor architecture, not only a distributed-audio zone.");
+  }
+  return warnings;
+}
+
+export function newVideoChain(): VideoChain {
+  return {
+    id: uid("video"),
+    room: "",
+    displayBrand: "Sony",
+    displayModel: "",
+    source: "Apple TV",
+    control: "Savant IP",
+    audio: "Leon Passive Soundbar",
+    transport: "HDMI",
+    network: true,
+    mount: "Future Automation",
+    notes: "",
+  };
+}
+
+export function videoChainWarnings(chain: VideoChain) {
+  const warnings: string[] = [];
+  if (!chain.room.trim()) warnings.push("Room is not assigned.");
+  if (chain.displayBrand === "TBD") warnings.push("Display brand/model is TBD.");
+  if (chain.control === "TBD") warnings.push("Control path is not defined.");
+  if (chain.source === "Apple TV" && !chain.network) warnings.push("Apple TV source should have reliable network connectivity.");
+  if (chain.audio === "Leon Passive Soundbar") {
+    warnings.push("Passive Leon soundbar requires amplifier channels and a defined audio signal path.");
+  }
+  if (chain.transport === "HDMI" && chain.notes.toLowerCase().includes("long run")) {
+    warnings.push("Long HDMI pathway noted; evaluate fiber HDMI or an extender solution.");
+  }
+  if (chain.mount === "Future Automation") {
+    warnings.push("Verify exact display VESA/weight/travel against the selected Future Automation mount/backbox.");
+  }
+  return warnings;
+}
+
+export function newCableRun(): CableRun {
+  return {
+    id: uid("cable"),
+    from: "Rack",
+    to: "",
+    cableType: "CAT6A",
+    measuredFt: 50,
+    verticalAllowanceFt: 10,
+    serviceLoopPct: 10,
+    wastePct: 10,
+    quantity: 1,
+    notes: "",
+  };
+}
+
+export function cableRunTotal(run: CableRun) {
+  const base = Math.max(0, run.measuredFt + run.verticalAllowanceFt);
+  const multiplier = 1 + Math.max(0, run.serviceLoopPct) / 100 + Math.max(0, run.wastePct) / 100;
+  return Math.ceil(base * multiplier * Math.max(1, run.quantity));
+}
+
+export function cableSummary(runs: CableRun[]) {
+  const totals = new Map<CableType, number>();
+  for (const run of runs) {
+    totals.set(run.cableType, (totals.get(run.cableType) ?? 0) + cableRunTotal(run));
+  }
+  return Array.from(totals.entries()).map(([type, feet]) => ({ type, feet }));
+}
+
+export function networkDerived(plan: NetworkPlan) {
+  const endpointPorts = plan.wiredEndpoints + plan.poeEndpoints + plan.cameras + plan.indoorAps + plan.outdoorAps;
+  const portTarget = Math.max(8, Math.ceil(endpointPorts * 1.25));
+  const poeTarget = Math.ceil((plan.poeEndpoints + plan.cameras + plan.indoorAps + plan.outdoorAps) * 1.2);
+  const multiBuilding = plan.buildings > 1;
+  const multiFloor = plan.floors > 1;
+  const recommendations: string[] = [
+    `Plan at least ${portTarget} switch ports including ~25% working reserve.`,
+    `Plan at least ${poeTarget} PoE-capable ports including reserve.`,
+    `Gateway should sustain the target WAN performance of ${plan.wanGbps} Gbps with the project's security features enabled.`,
+    `Backbone target: ${plan.targetBackboneGbps} Gbps or greater where the endpoint/uplink design requires it.`,
+  ];
+  if (multiBuilding) recommendations.push("Use a site-level topology: building distribution, fiber/appropriate inter-building uplinks, outdoor-rated pathways and surge/grounding coordination.");
+  if (multiFloor) recommendations.push("Plan vertical backbone/riser capacity and per-floor distribution rather than treating the property as one flat LAN.");
+  if (plan.outdoorAps > 0) recommendations.push("Outdoor APs require environment-rated mounting, weather exposure, pathway and RF/site coverage review.");
+  return { endpointPorts, portTarget, poeTarget, recommendations };
+}
+
+export function budgetTotals(plan: BudgetPlan) {
+  const allocated = Object.values(plan.allocations).reduce((sum, value) => sum + Math.max(0, value), 0);
+  return {
+    allocated,
+    remaining: plan.total - allocated,
+    percent: plan.total > 0 ? (allocated / plan.total) * 100 : 0,
+  };
+}
+
+export function validateProject(input: {
+  bom: BomItem[];
+  mode: ProjectMode;
+  survey: RetrofitSurvey;
+  tools: ProjectToolsState;
+}): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const add = (severity: ValidationIssue["severity"], system: string, message: string) =>
+    issues.push({ id: uid("check"), severity, system, message });
+
+  for (const run of input.tools.qtlRuns) {
+    for (const warning of qtlRunWarnings(run)) add("Warning", "QTL", `${run.room || "Unassigned run"}: ${warning}`);
+  }
+
+  for (const zone of input.tools.audioZones) {
+    for (const warning of audioZoneWarnings(zone)) add("Warning", "Audio", `${zone.room || "Unassigned zone"}: ${warning}`);
+  }
+
+  for (const chain of input.tools.videoChains) {
+    for (const warning of videoChainWarnings(chain)) add("Warning", "Video", `${chain.room || "Unassigned video system"}: ${warning}`);
+  }
+
+  const net = networkDerived(input.tools.network);
+  if (input.tools.network.indoorAps + input.tools.network.outdoorAps === 0) {
+    add("Info", "Network", "No access points are currently included in the network plan.");
+  }
+  if (input.tools.network.rackLocations <= 0) {
+    add("Warning", "Network", "No rack / equipment location is assigned.");
+  }
+  if (net.portTarget > 48) {
+    add("Info", "Network", "Port target exceeds a typical single-switch design; plan distribution and uplinks intentionally.");
+  }
+
+  if (input.tools.cableRuns.length === 0) {
+    add("Info", "Infrastructure", "No cable runs have been entered yet.");
+  }
+  for (const run of input.tools.cableRuns) {
+    if (!run.to.trim()) add("Warning", "Infrastructure", `${run.cableType}: destination is not assigned.`);
+    if (run.cableType === "CAT6" && input.tools.network.targetBackboneGbps > 1) {
+      add("Info", "Infrastructure", "CAT6 run exists in a multi-gig design. Verify distance/performance; prefer CAT6A where the design requires predictable higher-speed headroom.");
+    }
+  }
+
+  const budget = budgetTotals(input.tools.budget);
+  if (budget.remaining < 0) add("Blocker", "Budget", `Allocated system budget is over target by $${Math.abs(budget.remaining).toLocaleString()}.`);
+  if (input.tools.budget.total <= 0) add("Warning", "Budget", "Project target budget is not defined.");
+
+  if (input.mode === "retrofit" && input.survey.controlPlatform === "Unknown") {
+    add("Warning", "Retrofit", "Existing lighting-control platform is still unknown.");
+  }
+  if (input.mode === "retrofit" && input.survey.networkPlatform === "Unknown") {
+    add("Warning", "Retrofit", "Existing network platform is still unknown.");
+  }
+
+  const reviewBom = input.bom.filter((item) => item.confidence === "Review");
+  if (reviewBom.length > 0) add("Info", "BOM", `${reviewBom.length} preliminary BOM item(s) still require design/field verification.`);
+
+  if (issues.length === 0) add("Info", "Project", "No blocking issues found by the currently implemented checks.");
+  return issues;
+}
+
+export function exportCsv(filename: string, rows: string[][]) {
+  const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  const csv = rows.map((row) => row.map(cell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
