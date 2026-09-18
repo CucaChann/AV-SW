@@ -59,7 +59,7 @@ function BomRows({ items }: { items: BomItem[] }) {
 }
 
 function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 function exportBomCsv(items: BomItem[], mode: ProjectMode) {
