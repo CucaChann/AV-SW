@@ -223,3 +223,110 @@ button:hover {
     display: none;
   }
 }
+
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.button-like,
+.toolbar-button,
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  color: inherit;
+  background: #171d25;
+  border: 1px solid #2a3340;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.button-like:hover,
+.toolbar-button:hover,
+.upload-label:hover {
+  background: #202834;
+}
+
+.button-like {
+  justify-content: flex-start;
+}
+
+.upload-label.primary {
+  background: #f2f5f8;
+  color: #11161d;
+  border-color: #f2f5f8;
+}
+
+.toolbar-divider {
+  width: 1px;
+  min-width: 1px !important;
+  height: 24px;
+  background: #2a3340;
+  margin: 0 2px;
+}
+
+.page-status {
+  min-width: auto !important;
+  white-space: nowrap;
+}
+
+.file-name {
+  min-width: 0 !important;
+  max-width: 220px;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right !important;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.canvas.has-document {
+  cursor: grab;
+}
+
+.canvas.is-dragging {
+  cursor: grabbing;
+}
+
+.pdf-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.pdf-canvas {
+  display: block;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.rendering-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(17, 22, 29, 0.9);
+  border: 1px solid #2a3340;
+  color: #dce3eb;
+  font-size: 12px;
+}
