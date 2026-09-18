@@ -74,3 +74,25 @@ Hybrid desktop foundation:
 - browser file picker fallback
 - local SQLite foundation
 - PDF pan/zoom/page navigation
+
+
+## DXF test
+
+The repository includes a small sample drawing:
+
+`samples/apartment_demo.dxf`
+
+Open it from AV-SW using **Open Drawing**.
+
+Expected behavior:
+- DXF geometry renders in the canvas
+- units show as Inches
+- layers are listed in Drawing Analysis
+- room labels are detected for Living Room, Kitchen, and Office
+- **Generate First Draft** produces initial lighting/network/audio/control recommendations
+
+Current supported drawing formats:
+- PDF
+- DXF
+
+DWG support is planned after the DXF import pipeline is stable.
