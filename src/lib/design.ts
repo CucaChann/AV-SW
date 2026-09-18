@@ -5,7 +5,7 @@ import type {
 
 export type SystemName = DraftRecommendation["system"];
 export type ProjectMode = "new-build" | "retrofit";
-export type InspectorView = "system" | "bom" | "analysis";
+export type InspectorView = "system" | "bom" | "analysis" | "survey";
 
 export type BomStatus = "Add" | "Replace" | "Reuse" | "Verify";
 export type BomConfidence = "High" | "Medium" | "Review";
@@ -511,4 +511,210 @@ export function generatePreliminaryBom(
   );
 
   return items;
+}
+
+
+export type ExistingControlPlatform =
+  | "Unknown"
+  | "None"
+  | "RadioRA 2"
+  | "RadioRA 3"
+  | "HomeWorks QS"
+  | "HomeWorks QSX"
+  | "Other";
+
+export type ExistingNetworkPlatform =
+  | "Unknown"
+  | "None"
+  | "UniFi"
+  | "Araknis"
+  | "Ruckus"
+  | "Eero"
+  | "Other";
+
+export type ExistingAudioPlatform =
+  | "Unknown"
+  | "None"
+  | "Sonance / James"
+  | "Leon"
+  | "Mixed"
+  | "Other";
+
+export type RetrofitSurvey = {
+  controlPlatform: ExistingControlPlatform;
+  networkPlatform: ExistingNetworkPlatform;
+  audioPlatform: ExistingAudioPlatform;
+  speakerCount: number;
+  catDrops: number;
+  displayCount: number;
+  shadeCount: number;
+  hasRack: boolean;
+  preserveSpeakers: boolean;
+  preserveCabling: boolean;
+  preserveRack: boolean;
+  targetHomeWorks: boolean;
+  targetUnifi: boolean;
+  notes: string;
+};
+
+export const DEFAULT_RETROFIT_SURVEY: RetrofitSurvey = {
+  controlPlatform: "Unknown",
+  networkPlatform: "Unknown",
+  audioPlatform: "Unknown",
+  speakerCount: 0,
+  catDrops: 0,
+  displayCount: 0,
+  shadeCount: 0,
+  hasRack: false,
+  preserveSpeakers: true,
+  preserveCabling: true,
+  preserveRack: true,
+  targetHomeWorks: true,
+  targetUnifi: true,
+  notes: "",
+};
+
+export function applyRetrofitSurvey(
+  sourceBom: BomItem[],
+  survey: RetrofitSurvey,
+): BomItem[] {
+  return sourceBom.map((item) => {
+    const next = { ...item };
+
+    if (item.system === "Lutron" && item.item.includes("HomeWorks processor")) {
+      if (!survey.targetHomeWorks) {
+        next.status = "Verify";
+        next.confidence = "Review";
+        next.basis =
+          "HomeWorks is not selected as the retrofit target. Confirm the intended control platform before defining processor hardware.";
+      } else if (survey.controlPlatform === "HomeWorks QSX") {
+        next.status = "Reuse";
+        next.confidence = "High";
+        next.quantity = "1 existing";
+        next.basis =
+          "Existing HomeWorks QSX was entered in the retrofit survey. Keep the processor provisionally, then verify links, capacity, firmware, and project access before release.";
+      } else if (
+        survey.controlPlatform === "HomeWorks QS" ||
+        survey.controlPlatform === "RadioRA 2" ||
+        survey.controlPlatform === "RadioRA 3" ||
+        survey.controlPlatform === "Other"
+      ) {
+        next.status = "Replace";
+        next.confidence = "Medium";
+        next.basis =
+          `Retrofit survey lists ${survey.controlPlatform} while the target is HomeWorks. Treat processor/control-platform replacement as provisional until migration compatibility and retained devices are verified.`;
+      } else if (survey.controlPlatform === "None") {
+        next.status = "Add";
+        next.confidence = "High";
+        next.basis =
+          "No existing lighting-control platform was entered and HomeWorks is the target system.";
+      }
+    }
+
+    if (item.system === "Network" && item.item.includes("Cloud gateway")) {
+      if (!survey.targetUnifi) {
+        next.status = "Verify";
+        next.confidence = "Review";
+        next.basis =
+          "UniFi is not selected as the retrofit target. Confirm the desired network platform before choosing a gateway.";
+      } else if (survey.networkPlatform === "UniFi") {
+        next.status = "Reuse";
+        next.confidence = "Medium";
+        next.quantity = "1 existing";
+        next.basis =
+          "Existing UniFi was entered in the retrofit survey. Reuse is provisional until gateway model, throughput, controller ownership, firmware, and security requirements are checked.";
+      } else if (
+        survey.networkPlatform !== "Unknown" &&
+        survey.networkPlatform !== "None"
+      ) {
+        next.status = "Replace";
+        next.confidence = "Medium";
+        next.basis =
+          `Existing network platform is ${survey.networkPlatform}; target is UniFi. Plan a staged gateway migration while preserving working endpoints where practical.`;
+      } else if (survey.networkPlatform === "None") {
+        next.status = "Add";
+        next.confidence = "High";
+        next.basis =
+          "No existing network platform was entered and UniFi is the target.";
+      }
+    }
+
+    if (item.system === "Network" && item.item.includes("PoE switching")) {
+      if (survey.targetUnifi && survey.networkPlatform === "UniFi") {
+        next.status = "Verify";
+        next.confidence = "Medium";
+        next.basis =
+          "Existing UniFi may already include usable switching. Verify model, port speed, PoE standards, PoE budget, uplinks, and reserve capacity before adding or replacing switches.";
+      }
+    }
+
+    if (
+      item.system === "Network" &&
+      item.item.includes("structured-cabling drops") &&
+      survey.preserveCabling &&
+      survey.catDrops > 0
+    ) {
+      next.status = "Reuse";
+      next.confidence = "Medium";
+      next.quantity = `${survey.catDrops} existing + TBD new`;
+      next.basis =
+        "Existing structured-cabling drops were entered in the survey. Reuse only after continuity, category, termination, link-speed, and pathway checks.";
+    }
+
+    if (
+      item.system === "Audio" &&
+      item.item.includes("Architectural in-wall") &&
+      survey.preserveSpeakers &&
+      survey.speakerCount > 0
+    ) {
+      next.status = "Reuse";
+      next.confidence = "Medium";
+      next.quantity = `${survey.speakerCount} existing`;
+      next.manufacturer =
+        survey.audioPlatform === "Unknown" || survey.audioPlatform === "None"
+          ? item.manufacturer
+          : survey.audioPlatform;
+      next.basis =
+        "Existing architectural speakers were entered in the retrofit survey and marked for preservation. Verify model, impedance, condition, backbox, placement, coverage, wiring, and finish before reuse.";
+    }
+
+    if (
+      item.system === "Infrastructure" &&
+      item.item.includes("rack or equipment enclosure") &&
+      survey.hasRack &&
+      survey.preserveRack
+    ) {
+      next.status = "Reuse";
+      next.confidence = "Medium";
+      next.quantity = "1 existing";
+      next.basis =
+        "Existing rack was entered and marked for preservation. Verify RU, usable depth, ventilation, power, grounding, service clearance, and cable management.";
+    }
+
+    if (
+      item.system === "Video" &&
+      item.item === "Displays" &&
+      survey.displayCount > 0
+    ) {
+      next.status = "Verify";
+      next.confidence = "Medium";
+      next.quantity = `${survey.displayCount} existing`;
+      next.basis =
+        "Existing displays were entered in the retrofit survey. Keep or replace room-by-room based on size, age, control capability, mounting compatibility, client goals, and image-performance requirements.";
+    }
+
+    if (
+      item.system === "Shades" &&
+      item.item.includes("Sivoia QS") &&
+      survey.shadeCount > 0
+    ) {
+      next.status = "Verify";
+      next.confidence = "Medium";
+      next.quantity = `${survey.shadeCount} existing/openings`;
+      next.basis =
+        "Existing shade count/openings were entered in the retrofit survey. Verify operator family, wiring, pocket dimensions, fabric condition, controls, and compatibility before deciding what remains.";
+    }
+
+    return next;
+  });
 }
