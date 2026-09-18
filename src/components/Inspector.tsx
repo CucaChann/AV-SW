@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import RetrofitSurveyPanel from "./RetrofitSurveyPanel";
 import type {
   DrawingAnalysis,
   DraftRecommendation,
@@ -8,6 +9,7 @@ import {
   type BomItem,
   type InspectorView,
   type ProjectMode,
+  type RetrofitSurvey,
   type SystemName,
 } from "../lib/design";
 
@@ -17,6 +19,8 @@ type Props = {
   analysis: DrawingAnalysis | null;
   draft: DraftRecommendation[];
   bom: BomItem[];
+  survey: RetrofitSurvey;
+  onSurveyChange: (survey: RetrofitSurvey) => void;
   view: InspectorView;
   onViewChange: (view: InspectorView) => void;
 };
@@ -60,6 +64,8 @@ export default function Inspector({
   analysis,
   draft,
   bom,
+  survey,
+  onSurveyChange,
   view,
   onViewChange,
 }: Props) {
@@ -114,6 +120,14 @@ export default function Inspector({
         >
           BOM
         </button>
+        {mode === "retrofit" && (
+          <button
+            className={view === "survey" ? "active" : ""}
+            onClick={() => onViewChange("survey")}
+          >
+            Survey
+          </button>
+        )}
         <button
           className={view === "analysis" ? "active" : ""}
           onClick={() => onViewChange("analysis")}
@@ -263,6 +277,10 @@ export default function Inspector({
             </p>
           </section>
         </>
+      )}
+
+      {view === "survey" && mode === "retrofit" && (
+        <RetrofitSurveyPanel value={survey} onChange={onSurveyChange} />
       )}
 
       {view === "analysis" && (
