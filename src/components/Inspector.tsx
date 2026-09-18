@@ -58,6 +58,51 @@ function BomRows({ items }: { items: BomItem[] }) {
   );
 }
 
+function csvCell(value: string) {
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function exportBomCsv(items: BomItem[], mode: ProjectMode) {
+  const header = [
+    "System",
+    "Manufacturer",
+    "Item",
+    "Quantity",
+    "Scope",
+    "Confidence",
+    "Basis",
+  ];
+
+  const rows = items.map((item) => [
+    item.system,
+    item.manufacturer ?? "",
+    item.item,
+    item.quantity,
+    item.status,
+    item.confidence,
+    item.basis,
+  ]);
+
+  const csv = [
+    `AV-SW ${mode === "retrofit" ? "Retrofit Delta" : "Preliminary"} BOM`,
+    header.map(csvCell).join(","),
+    ...rows.map((row) => row.map((value) => csvCell(String(value))).join(",")),
+  ].join("\r\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download =
+    mode === "retrofit"
+      ? "av-sw-retrofit-delta-bom.csv"
+      : "av-sw-preliminary-bom.csv";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function Inspector({
   activeSystem,
   mode,
@@ -247,6 +292,14 @@ export default function Inspector({
                 Verify {statusCounts.Verify}
               </span>
             </div>
+
+            <button
+              className="export-bom-button"
+              onClick={() => exportBomCsv(bom, mode)}
+              disabled={bom.length === 0}
+            >
+              Export BOM CSV
+            </button>
 
             <div className="scope-toggle">
               <button
