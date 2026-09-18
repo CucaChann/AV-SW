@@ -440,3 +440,220 @@ export function exportCsv(filename: string, rows: string[][]) {
   anchor.remove();
   URL.revokeObjectURL(url);
 }
+
+
+export function generateToolBom(
+  tools: ProjectToolsState,
+  mode: ProjectMode,
+): BomItem[] {
+  const items: BomItem[] = [];
+  const status = mode === "retrofit" ? "Verify" : "Add";
+
+  for (const run of tools.qtlRuns) {
+    items.push({
+      id: `tool-${run.id}-fixture`,
+      system: "QTL",
+      manufacturer: "QTL",
+      item: `${run.application} linear lighting — ${run.room || "Unassigned"}`,
+      quantity: `${run.lengthFt.toFixed(1)} ft`,
+      status,
+      confidence: run.selectedFamily.startsWith("TBD") ? "Review" : "Medium",
+      basis: `${run.selectedFamily}; ${run.wattsPerFt} W/ft; ${qtlRunPower(run).toFixed(1)} W calculated load; ${run.cct}; ${run.voltage} V; ${run.dimming}.`,
+    });
+
+    items.push({
+      id: `tool-${run.id}-driver`,
+      system: "QTL",
+      manufacturer: "QTL / compatible driver",
+      item: `Driver / power supply — ${run.room || "Unassigned"}`,
+      quantity: "1 planning allowance",
+      status,
+      confidence: "Review",
+      basis: `Planning minimum ${qtlDriverMinimum(run)} W including entered reserve. Final driver model/control compatibility must match current manufacturer configuration.`,
+    });
+  }
+
+  if (
+    tools.network.wiredEndpoints +
+      tools.network.poeEndpoints +
+      tools.network.cameras +
+      tools.network.indoorAps +
+      tools.network.outdoorAps >
+    0
+  ) {
+    const derived = networkDerived(tools.network);
+
+    items.push({
+      id: "tool-network-gateway",
+      system: "Network",
+      manufacturer: tools.network.targetPlatform === "UniFi" ? "Ubiquiti / UniFi" : undefined,
+      item: "Gateway / router",
+      quantity: "1",
+      status,
+      confidence: "Medium",
+      basis: `Size for ${tools.network.wanGbps} Gbps WAN target and project security/features. Exact model remains requirement-driven.`,
+    });
+
+    items.push({
+      id: "tool-network-switching",
+      system: "Network",
+      manufacturer: tools.network.targetPlatform === "UniFi" ? "Ubiquiti / UniFi" : undefined,
+      item: "Managed PoE switching",
+      quantity: `${derived.portTarget}+ port working target`,
+      status,
+      confidence: "Medium",
+      basis: `Current endpoint model needs ${derived.endpointPorts} ports; working target includes reserve and at least ${derived.poeTarget} PoE-capable ports.`,
+    });
+
+    if (tools.network.indoorAps > 0) {
+      items.push({
+        id: "tool-network-indoor-aps",
+        system: "Network",
+        manufacturer: tools.network.targetPlatform === "UniFi" ? "Ubiquiti / UniFi" : undefined,
+        item: "Indoor Wi-Fi access points",
+        quantity: String(tools.network.indoorAps),
+        status,
+        confidence: "Review",
+        basis: "Exact AP family/location must follow floorplan geometry, wall materials, target bands and predictive/field RF validation.",
+      });
+    }
+
+    if (tools.network.outdoorAps > 0) {
+      items.push({
+        id: "tool-network-outdoor-aps",
+        system: "Network",
+        manufacturer: tools.network.targetPlatform === "UniFi" ? "Ubiquiti / UniFi" : "UniFi / suitable outdoor platform",
+        item: "Outdoor Wi-Fi access points",
+        quantity: String(tools.network.outdoorAps),
+        status,
+        confidence: "Review",
+        basis: "Outdoor-rated model, mounting, pathway, weather exposure and site RF coverage must be verified.",
+      });
+    }
+  }
+
+  for (const zone of tools.audioZones) {
+    items.push({
+      id: `tool-${zone.id}-speakers`,
+      system: "Audio",
+      manufacturer:
+        zone.speakerType === "Passive Soundbar"
+          ? "Leon / James / project-selected"
+          : zone.speakerType === "Invisible"
+            ? "Sonance / Amina / Stealth / project-selected"
+            : "Sonance / James / K-array / project-selected",
+      item: `${zone.speakerType} speakers — ${zone.room || "Unassigned"}`,
+      quantity: String(zone.speakerCount),
+      status,
+      confidence: "Review",
+      basis: `${zone.purpose}; control: ${zone.control}; exact model requires geometry, performance, aesthetics and budget.`,
+    });
+
+    if (zone.amplification !== "Powered Speaker") {
+      items.push({
+        id: `tool-${zone.id}-amp`,
+        system: "Audio",
+        manufacturer:
+          zone.amplification === "Sonos Amp"
+            ? "Sonos"
+            : zone.amplification === "AVR / Marantz"
+              ? "Marantz / project-selected"
+              : undefined,
+        item: `Amplification — ${zone.room || "Unassigned"}`,
+        quantity: "1 zone allowance",
+        status,
+        confidence: zone.amplification === "TBD" ? "Review" : "Medium",
+        basis: `Selected strategy: ${zone.amplification}. Final channel count, impedance, power and DSP/preset requirements must be validated.`,
+      });
+    }
+
+    if (zone.subwoofer) {
+      items.push({
+        id: `tool-${zone.id}-sub`,
+        system: "Audio",
+        item: `Subwoofer / low-frequency solution — ${zone.room || "Unassigned"}`,
+        quantity: "1+",
+        status,
+        confidence: "Review",
+        basis: "Placement, room modes, isolation/rattle control, amplification, concealment and ventilation require review.",
+      });
+    }
+  }
+
+  for (const chain of tools.videoChains) {
+    items.push({
+      id: `tool-${chain.id}-display`,
+      system: "Video",
+      manufacturer: chain.displayBrand === "TBD" ? undefined : chain.displayBrand,
+      item: `Display — ${chain.room || "Unassigned"}`,
+      quantity: "1",
+      status,
+      confidence: chain.displayModel.trim() ? "Medium" : "Review",
+      basis: chain.displayModel.trim()
+        ? `Entered model/size: ${chain.displayModel}.`
+        : "Exact display model/size remains TBD.",
+    });
+
+    if (chain.source !== "None") {
+      items.push({
+        id: `tool-${chain.id}-source`,
+        system: "Video",
+        manufacturer: chain.source === "Apple TV" ? "Apple" : undefined,
+        item: `Source — ${chain.source}`,
+        quantity: "1",
+        status,
+        confidence: "Medium",
+        basis: `Room: ${chain.room || "Unassigned"}; control path: ${chain.control}; transport: ${chain.transport}.`,
+      });
+    }
+
+    items.push({
+      id: `tool-${chain.id}-mount`,
+      system: "Video",
+      manufacturer: chain.mount === "Future Automation" ? "Future Automation" : undefined,
+      item: `Display mount / backbox — ${chain.room || "Unassigned"}`,
+      quantity: "1",
+      status,
+      confidence: "Review",
+      basis: `Selected strategy: ${chain.mount}. Verify exact display dimensions, VESA, weight, wall construction, travel and soundbar relationship.`,
+    });
+
+    if (chain.audio === "Leon Passive Soundbar") {
+      items.push({
+        id: `tool-${chain.id}-audio`,
+        system: "Audio",
+        manufacturer: "Leon Speakers",
+        item: `Custom passive soundbar — ${chain.room || "Unassigned"}`,
+        quantity: "1",
+        status,
+        confidence: "Review",
+        basis: "Exact Leon configuration should follow final display width, channel configuration, finish, amplification and mounting/elevation details.",
+      });
+    } else if (chain.audio === "Sonos Arc") {
+      items.push({
+        id: `tool-${chain.id}-audio`,
+        system: "Audio",
+        manufacturer: "Sonos",
+        item: `Sonos Arc / TV audio — ${chain.room || "Unassigned"}`,
+        quantity: "1",
+        status,
+        confidence: "Medium",
+        basis: "Verify display audio return/control path, network, mounting/clearance and any custom Leon enclosure/frame request.",
+      });
+    }
+  }
+
+  for (const run of tools.cableRuns) {
+    items.push({
+      id: `tool-${run.id}-cable`,
+      system: "Infrastructure",
+      item: `${run.cableType} cabling — ${run.from} to ${run.to || "TBD"}`,
+      quantity: `${cableRunTotal(run)} ft est.`,
+      status,
+      confidence: run.to.trim() ? "Medium" : "Review",
+      basis: `Includes measured path, vertical allowance, ${run.serviceLoopPct}% service loop, ${run.wastePct}% waste, qty ${run.quantity}.`,
+    });
+  }
+
+  return items;
+}
