@@ -7,16 +7,35 @@ import type {
   DraftRecommendation,
 } from "./lib/dxf";
 import {
+  applyRetrofitSurvey,
+  DEFAULT_RETROFIT_SURVEY,
   generatePreliminaryBom,
   SYSTEMS,
   type InspectorView,
   type ProjectMode,
+  type RetrofitSurvey,
   type SystemName,
 } from "./lib/design";
 import {
   initializePersistence,
   type PersistenceStatus,
 } from "./lib/persistence";
+
+const SURVEY_STORAGE_KEY = "avsw-retrofit-survey";
+
+function loadSurvey(): RetrofitSurvey {
+  try {
+    const stored = localStorage.getItem(SURVEY_STORAGE_KEY);
+    if (!stored) return DEFAULT_RETROFIT_SURVEY;
+
+    return {
+      ...DEFAULT_RETROFIT_SURVEY,
+      ...(JSON.parse(stored) as Partial<RetrofitSurvey>),
+    };
+  } catch {
+    return DEFAULT_RETROFIT_SURVEY;
+  }
+}
 
 export default function App() {
   const desktop = isTauri();
@@ -31,6 +50,8 @@ export default function App() {
     useState<ProjectMode>("new-build");
   const [inspectorView, setInspectorView] =
     useState<InspectorView>("system");
+  const [retrofitSurvey, setRetrofitSurvey] =
+    useState<RetrofitSurvey>(loadSurvey);
 
   useEffect(() => {
     void initializePersistence()
@@ -44,14 +65,34 @@ export default function App() {
       });
   }, []);
 
-  const bom = useMemo(
+  useEffect(() => {
+    localStorage.setItem(
+      SURVEY_STORAGE_KEY,
+      JSON.stringify(retrofitSurvey),
+    );
+  }, [retrofitSurvey]);
+
+  const baseBom = useMemo(
     () => generatePreliminaryBom(analysis, draft, projectMode),
     [analysis, draft, projectMode],
+  );
+
+  const bom = useMemo(
+    () =>
+      projectMode === "retrofit"
+        ? applyRetrofitSurvey(baseBom, retrofitSurvey)
+        : baseBom,
+    [baseBom, projectMode, retrofitSurvey],
   );
 
   function chooseSystem(system: SystemName) {
     setActiveSystem(system);
     setInspectorView("system");
+  }
+
+  function setMode(mode: ProjectMode) {
+    setProjectMode(mode);
+    setInspectorView(mode === "retrofit" ? "survey" : "system");
   }
 
   return (
@@ -68,6 +109,11 @@ export default function App() {
         <div className="top-actions">
           <button>Project: Demo</button>
           <button>Revision: P1</button>
+          {projectMode === "retrofit" && (
+            <button onClick={() => setInspectorView("survey")}>
+              Existing Conditions
+            </button>
+          )}
           <button onClick={() => setInspectorView("bom")}>
             BOM ({bom.length})
           </button>
@@ -99,22 +145,31 @@ export default function App() {
             <div className="mode-toggle">
               <button
                 className={projectMode === "new-build" ? "active" : ""}
-                onClick={() => setProjectMode("new-build")}
+                onClick={() => setMode("new-build")}
               >
                 New Build
               </button>
               <button
                 className={projectMode === "retrofit" ? "active" : ""}
-                onClick={() => setProjectMode("retrofit")}
+                onClick={() => setMode("retrofit")}
               >
                 Retrofit
               </button>
             </div>
             <p className="sidebar-note">
               {projectMode === "retrofit"
-                ? "Preserve compatible infrastructure first; replace only what blocks the upgrade."
+                ? "Survey what exists, preserve compatible infrastructure, and generate a delta scope."
                 : "Assume new system design until existing conditions are explicitly marked for reuse."}
             </p>
+
+            {projectMode === "retrofit" && (
+              <button
+                className="survey-shortcut"
+                onClick={() => setInspectorView("survey")}
+              >
+                Edit Existing Conditions
+              </button>
+            )}
           </div>
 
           <div className="sidebar-section">
@@ -152,6 +207,8 @@ export default function App() {
           analysis={analysis}
           draft={draft}
           bom={bom}
+          survey={retrofitSurvey}
+          onSurveyChange={setRetrofitSurvey}
           view={inspectorView}
           onViewChange={setInspectorView}
         />
