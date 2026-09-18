@@ -20,6 +20,7 @@ import {
   initializePersistence,
   type PersistenceStatus,
 } from "./lib/persistence";
+import { useTheme, type ThemePreference } from "./lib/theme";
 
 const SURVEY_STORAGE_KEY = "avsw-retrofit-survey";
 
@@ -39,6 +40,7 @@ function loadSurvey(): RetrofitSurvey {
 
 export default function App() {
   const desktop = isTauri();
+  const theme = useTheme();
   const [persistence, setPersistence] =
     useState<PersistenceStatus | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -109,6 +111,19 @@ export default function App() {
         <div className="top-actions">
           <button>Project: Demo</button>
           <button>Revision: P1</button>
+          <label className="theme-control" title={`Theme: ${theme.preference} (${theme.resolved})`}>
+            <span>Theme</span>
+            <select
+              value={theme.preference}
+              onChange={(event) =>
+                theme.setPreference(event.target.value as ThemePreference)
+              }
+            >
+              <option value="system">System</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
           {projectMode === "retrofit" && (
             <button onClick={() => setInspectorView("survey")}>
               Existing Conditions
