@@ -17,6 +17,9 @@
 - Interactive system workspaces (Lighting, Lutron, QTL, Shades, Network, Audio, Video, Infrastructure)
 - Preliminary BOM generation from drawing analysis and design rules
 - Retrofit / Upgrade mode with Add / Replace / Reuse / Verify scope
+- Editable existing-conditions survey
+- Survey-aware retrofit delta BOM
+- BOM CSV export
 - DWG import planned after DXF pipeline stabilizes
 - New Project
 - Open Project
