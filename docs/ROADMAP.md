@@ -9,7 +9,12 @@
 - Preserve PDF pan/zoom/page navigation
 - Define local/cloud storage boundary
 
-## V0.1 — Real local project workflow
+## V0.1 — Drawing intelligence and real local project workflow
+- PDF + DXF import
+- DXF layer/entity analysis
+- DXF room-label detection
+- First-draft recommendation generation
+- DWG import planned after DXF pipeline stabilizes
 - New Project
 - Open Project
 - Recent Projects
