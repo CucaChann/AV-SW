@@ -14,6 +14,9 @@
 - DXF layer/entity analysis
 - DXF room-label detection
 - First-draft recommendation generation
+- Interactive system workspaces (Lighting, Lutron, QTL, Shades, Network, Audio, Video, Infrastructure)
+- Preliminary BOM generation from drawing analysis and design rules
+- Retrofit / Upgrade mode with Add / Replace / Reuse / Verify scope
 - DWG import planned after DXF pipeline stabilizes
 - New Project
 - Open Project
