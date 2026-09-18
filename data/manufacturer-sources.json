@@ -1,0 +1,421 @@
+{
+  "schema_version": 1,
+  "last_verified": "2026-09-18",
+  "policy": {
+    "source_priority": [
+      "official_manufacturer",
+      "official_support",
+      "official_technical_download"
+    ],
+    "mirror_documents_by_default": false,
+    "cache_project_documents_on_demand": true,
+    "preserve_historical_revisions": true
+  },
+  "manufacturers": [
+    {
+      "manufacturer": "Lutron",
+      "categories": [
+        "lighting_control",
+        "lighting",
+        "shades",
+        "keypads",
+        "hvac_control"
+      ],
+      "resource_hubs": [
+        "https://support.lutron.com/us/en/product/homeworks/documents/product-specification-submittals",
+        "https://support.lutron.com/us/en/product/homeworks/component/downlights/ketra/documents/product-specification-submittals",
+        "https://support.lutron.com/us/en/product/shades/component/roller-shades/sivoia-qs/documents/product-specification-submittals"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "dxf",
+        "revit",
+        "one_line"
+      ]
+    },
+    {
+      "manufacturer": "DMF Lighting",
+      "categories": [
+        "architectural_lighting"
+      ],
+      "resource_hubs": [
+        "https://www.dmflighting.com/resources/"
+      ],
+      "resource_types": [
+        "pdf",
+        "ies",
+        "revit",
+        "installation"
+      ]
+    },
+    {
+      "manufacturer": "QTL",
+      "categories": [
+        "linear_lighting",
+        "power_supplies"
+      ],
+      "resource_hubs": [
+        "https://www.qtl.lighting/resources/",
+        "https://www.qtl.lighting/products/alta-flat-01/",
+        "https://www.qtl.lighting/products/kurv/"
+      ],
+      "resource_types": [
+        "pdf",
+        "ies",
+        "cad",
+        "revit",
+        "photometric",
+        "ordering_guide"
+      ]
+    },
+    {
+      "manufacturer": "Ubiquiti",
+      "brand": "UniFi",
+      "categories": [
+        "network",
+        "wifi",
+        "security",
+        "access_control"
+      ],
+      "resource_hubs": [
+        "https://techspecs.ui.com/",
+        "https://design.ui.com/projects",
+        "https://www.ui.com/wifi"
+      ],
+      "resource_types": [
+        "datasheet",
+        "installation",
+        "design_tool"
+      ]
+    },
+    {
+      "manufacturer": "Leon Speakers",
+      "categories": [
+        "passive_soundbar",
+        "architectural_audio"
+      ],
+      "resource_hubs": [
+        "https://www.leonspeakers.com/resources/technical-downloads"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "installation",
+        "finish_library"
+      ]
+    },
+    {
+      "manufacturer": "Sonance",
+      "categories": [
+        "in_ceiling",
+        "in_wall",
+        "invisible",
+        "outdoor",
+        "marine",
+        "subwoofer"
+      ],
+      "resource_hubs": [
+        "https://sonance.com/products/93478",
+        "https://sonance.com/products/96017"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "dxf",
+        "ease",
+        "preset",
+        "manual"
+      ]
+    },
+    {
+      "manufacturer": "James by Sonance",
+      "categories": [
+        "passive_soundbar",
+        "small_aperture",
+        "in_wall",
+        "in_ceiling",
+        "subwoofer",
+        "marine"
+      ],
+      "resource_hubs": [
+        "https://sonance.com/collections/spl-soundbar",
+        "https://sonance.com/collections/small-aperture",
+        "https://sonance.com/products/ppx12"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "dxf",
+        "revit",
+        "ease",
+        "preset",
+        "manual"
+      ]
+    },
+    {
+      "manufacturer": "TRUFIG",
+      "categories": [
+        "flush_mount",
+        "speaker_mount",
+        "technology_mount"
+      ],
+      "resource_hubs": [
+        "https://www.trufig.com/support",
+        "https://sonance.com/pages/trufig"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "dxf",
+        "manual"
+      ]
+    },
+    {
+      "manufacturer": "IPORT",
+      "categories": [
+        "ipad_mount",
+        "poe_control_interface"
+      ],
+      "resource_hubs": [
+        "https://iport.io/pages/data-sheets",
+        "https://iport.io/products/sm"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "dxf",
+        "manual"
+      ]
+    },
+    {
+      "manufacturer": "Blaze by Sonance",
+      "categories": [
+        "amplifier",
+        "dsp"
+      ],
+      "resource_hubs": [
+        "https://sonance.com/products/lbx-888-003",
+        "https://sonance.com/products/ubx-888-008"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "step",
+        "firmware",
+        "preset",
+        "manual"
+      ]
+    },
+    {
+      "manufacturer": "Future Automation",
+      "categories": [
+        "tv_mount",
+        "motorized_mount",
+        "backbox"
+      ],
+      "resource_hubs": [
+        "https://www.futureautomation.net/Product/Details/PS65"
+      ],
+      "resource_types": [
+        "technical_sheet",
+        "cad",
+        "instructions"
+      ]
+    },
+    {
+      "manufacturer": "K-array",
+      "categories": [
+        "architectural_audio",
+        "line_array",
+        "subwoofer",
+        "marine"
+      ],
+      "resource_hubs": [
+        "https://www.k-array.com/en/product/lyzard-kz14-i",
+        "https://www.k-array.com/en/product/Vyper-KV102II",
+        "https://www.k-array.com/en/product/anakonda-kan200",
+        "https://www.k-array.com/en/product/rumble-ku210"
+      ],
+      "resource_types": [
+        "datasheet",
+        "bim",
+        "ease",
+        "3d",
+        "architect_specs",
+        "manual",
+        "cut_template"
+      ]
+    },
+    {
+      "manufacturer": "KSCAPE",
+      "categories": [
+        "architectural_audio",
+        "architectural_lighting",
+        "integrated_audio_lighting"
+      ],
+      "resource_hubs": [
+        "https://www.k-array.com/en/rail",
+        "https://www.k-array.com/en/product/rail-symmetric",
+        "https://www.k-array.com/en/product/rail-track"
+      ],
+      "resource_types": [
+        "bim",
+        "ease",
+        "dwg",
+        "manual",
+        "ldt",
+        "ies"
+      ]
+    },
+    {
+      "manufacturer": "Amina",
+      "categories": [
+        "invisible_speaker",
+        "invisible_subwoofer"
+      ],
+      "resource_hubs": [
+        "https://www.aminasound.com/resources/",
+        "https://www.aminasound.com/invisible-products/invisible-speakers/",
+        "https://www.aminasound.com/specification-service/"
+      ],
+      "resource_types": [
+        "datasheet",
+        "cad",
+        "installation",
+        "application_note"
+      ]
+    },
+    {
+      "manufacturer": "Wisdom Audio",
+      "categories": [
+        "high_end_architectural_audio",
+        "cinema",
+        "line_source"
+      ],
+      "resource_hubs": [
+        "https://www.wisdomaudio.com/product/sage-series-l75i/",
+        "https://www.wisdomaudio.com/product/sage-series-p20i/"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "3d_model",
+        "manual",
+        "datasheet"
+      ]
+    },
+    {
+      "manufacturer": "Stealth Acoustics",
+      "categories": [
+        "invisible_speaker",
+        "invisible_subwoofer"
+      ],
+      "resource_hubs": [
+        "https://www.stealthacoustics.com/invisible-speakers/lrx83/"
+      ],
+      "resource_types": [
+        "installation",
+        "drawing",
+        "test_data",
+        "brochure"
+      ]
+    },
+    {
+      "manufacturer": "Origin Acoustics",
+      "categories": [
+        "in_ceiling",
+        "in_wall",
+        "outdoor"
+      ],
+      "resource_hubs": [
+        "https://originacoustics.com/speaker-details/"
+      ],
+      "resource_types": [
+        "manual",
+        "spec_matrix"
+      ]
+    },
+    {
+      "manufacturer": "Theory Audio Design",
+      "categories": [
+        "soundbar",
+        "architectural_audio",
+        "amplifier",
+        "dsp"
+      ],
+      "resource_hubs": [
+        "https://downloads.theoryaudiodesign.com/"
+      ],
+      "resource_types": [
+        "pdf",
+        "technical_drawing",
+        "manual",
+        "quickstart"
+      ]
+    },
+    {
+      "manufacturer": "Trinnov",
+      "categories": [
+        "cinema_processor",
+        "calibration"
+      ],
+      "resource_hubs": [
+        "https://www.trinnov.com/en/resources/downloads/",
+        "https://www.trinnov.com/en/products/altitude-sup-16-sup/"
+      ],
+      "resource_types": [
+        "manual",
+        "guide",
+        "control_protocol",
+        "dxf",
+        "automation_driver"
+      ]
+    },
+    {
+      "manufacturer": "StormAudio",
+      "categories": [
+        "cinema_processor",
+        "receiver",
+        "calibration"
+      ],
+      "resource_hubs": [
+        "https://www.stormaudio.com/"
+      ],
+      "resource_types": [
+        "spec_sheet",
+        "manual",
+        "firmware"
+      ]
+    },
+    {
+      "manufacturer": "Meridian",
+      "categories": [
+        "active_speaker",
+        "dsp_audio"
+      ],
+      "resource_hubs": [
+        "https://www.meridian-audio.com/luxury-home-audio/loudspeakers/dsp3200/"
+      ],
+      "resource_types": [
+        "datasheet",
+        "user_guide"
+      ]
+    },
+    {
+      "manufacturer": "Steinway Lyngdorf",
+      "categories": [
+        "ultra_premium_audio",
+        "cinema"
+      ],
+      "resource_hubs": [
+        "https://steinwaylyngdorf.com/downloads/model-s-technical-drawings/"
+      ],
+      "resource_types": [
+        "pdf",
+        "dwg",
+        "technical_drawing"
+      ]
+    }
+  ]
+}
