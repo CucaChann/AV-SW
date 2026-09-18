@@ -15,16 +15,20 @@ export type DesignTier = "Core" | "Refined" | "Signature";
 export type QtlRun = {
   id: string;
   room: string;
-  application: "Cove" | "Millwork" | "Shelf" | "Toe Kick" | "Wall" | "Other";
+  application: string;
+  productId: string;
+  fixtureQty: number;
   lengthFt: number;
   widthIn: number;
   depthIn: number;
   wattsPerFt: number;
   voltage: 24 | 48;
-  cct: "2700K" | "3000K" | "3500K" | "4000K" | "TBD";
+  cct: string;
   environment: "Dry" | "Damp" | "Wet";
   feed: "Left" | "Right" | "Center" | "TBD";
-  dimming: "Phase" | "0-10V" | "DALI" | "DMX" | "On/Off" | "TBD";
+  dimming: string;
+  lens: string;
+  powerSupplyFamilyId: string;
   reservePct: number;
   selectedFamily: string;
   maxRunFt: number;
@@ -206,6 +210,8 @@ export function newQtlRun(): QtlRun {
     id: uid("qtl"),
     room: "",
     application: "Millwork",
+    productId: "",
+    fixtureQty: 1,
     lengthFt: 10,
     widthIn: 1,
     depthIn: 1,
@@ -215,7 +221,9 @@ export function newQtlRun(): QtlRun {
     environment: "Dry",
     feed: "TBD",
     dimming: "0-10V",
-    reservePct: 20,
+    lens: "TBD",
+    powerSupplyFamilyId: "qz",
+    reservePct: 0,
     selectedFamily: "TBD / Select from QTL library",
     maxRunFt: 0,
     notes: "",
@@ -223,7 +231,7 @@ export function newQtlRun(): QtlRun {
 }
 
 export function qtlRunPower(run: QtlRun) {
-  return Math.max(0, run.lengthFt * run.wattsPerFt);
+  return Math.max(0, run.lengthFt * run.wattsPerFt * Math.max(1, run.fixtureQty ?? 1));
 }
 
 export function qtlDriverMinimum(run: QtlRun) {
@@ -242,7 +250,8 @@ export function qtlRunWarnings(run: QtlRun) {
     warnings.push("Run exceeds the entered manufacturer maximum; split feeds/runs or change product.");
   }
   if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
-  if (run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
+  if (!run.productId && run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
+  if ((run.fixtureQty ?? 1) <= 0) warnings.push("Fixture quantity must be greater than zero.");
   return warnings;
 }
 
