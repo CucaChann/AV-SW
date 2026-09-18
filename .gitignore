@@ -141,3 +141,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+
+# Tauri / Rust build output
+src-tauri/target/
+target/
+
+# AV-SW local runtime files
+*.db
+*.db-shm
+*.db-wal
