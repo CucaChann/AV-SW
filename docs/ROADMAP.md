@@ -1,27 +1,44 @@
 # Roadmap
 
-## V0.1 — Floorplan foundation
-- Create project
-- Upload PDF
-- Render floorplan
-- Pan and zoom
+## V0.0 — Hybrid desktop foundation — current
+- Migrate the UI from Next.js to React + Vite
+- Add Tauri desktop shell
+- Keep browser development mode
+- Add native Windows PDF selection
+- Add local SQLite foundation
+- Preserve PDF pan/zoom/page navigation
+- Define local/cloud storage boundary
+
+## V0.1 — Real local project workflow
+- New Project
+- Open Project
+- Recent Projects
+- Local project metadata in SQLite
+- Import/reference floorplan
+- Autosave project state
+- Reopen project after application restart
+- Manual scale calibration
+- Project/revision selector
+
+## V0.2 — Editable design layer
+- React-Konva overlay
 - Layer selector
 - Device library
 - Place/move/rotate/delete symbols
 - Device properties
-- Manual scale calibration
 - Manual room assignment
-- Save/reload project
+- Persist design objects in SQLite
 
-## V0.2 — Structured design data
+## V0.3 — Structured design data
 - Product library
+- Product-to-symbol relationships
 - Automatic schedules
 - BOM generation
 - Cable/drop schedule
 - QTL run length and wattage calculation
 - Basic compatibility validation
 
-## V0.3 — Design assistance
+## V0.4 — Design assistance
 - Room recognition assistance
 - Lighting recommendations
 - UniFi AP candidate placement
@@ -29,7 +46,7 @@
 - Lutron control recommendations
 - QTL run recommendations
 
-## V0.4 — Design Check
+## V0.5 — Design Check
 - Missing power/data/wiring checks
 - PoE budget checks
 - Amplification checks
@@ -37,16 +54,24 @@
 - QTL driver checks
 - Coordination conflicts
 
-## V0.5 — Revision intelligence
+## V0.6 — Revision intelligence
 - Drawing revision comparison
 - Quote/BOM mismatch detection
 - Stale vendor quote warnings
 - TBD/approval tracking
 
-## V0.6 — Vendor quote ingestion
+## V0.7 — Vendor quote ingestion
 - Parse Lutron/QTL/Leon/other vendor quote PDFs
 - Match vendor line items to design objects
 - Flag mismatches
 
+## V0.8 — Cloud product knowledge
+- Shared manufacturer catalog
+- Product/document versioning
+- On-demand document download
+- Pin for offline
+- Make project available offline
+- Optional project backup/sync
+
 ## V1.0
-Professional design, coordination, validation, scheduling, and quoting platform.
+Professional desktop-first design, coordination, validation, scheduling, and quoting platform.
