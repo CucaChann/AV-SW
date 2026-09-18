@@ -1,25 +1,22 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useState } from "react";
 import DrawingViewer from "./components/DrawingViewer";
+import Inspector from "./components/Inspector";
 import type {
   DrawingAnalysis,
   DraftRecommendation,
 } from "./lib/dxf";
 import {
+  generatePreliminaryBom,
+  SYSTEMS,
+  type InspectorView,
+  type ProjectMode,
+  type SystemName,
+} from "./lib/design";
+import {
   initializePersistence,
   type PersistenceStatus,
 } from "./lib/persistence";
-
-const systems = [
-  "Lighting",
-  "Lutron",
-  "QTL",
-  "Shades",
-  "Network",
-  "Audio",
-  "Video",
-  "Infrastructure",
-];
 
 export default function App() {
   const desktop = isTauri();
@@ -28,6 +25,12 @@ export default function App() {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
   const [draft, setDraft] = useState<DraftRecommendation[]>([]);
+  const [activeSystem, setActiveSystem] =
+    useState<SystemName>("Lighting");
+  const [projectMode, setProjectMode] =
+    useState<ProjectMode>("new-build");
+  const [inspectorView, setInspectorView] =
+    useState<InspectorView>("system");
 
   useEffect(() => {
     void initializePersistence()
@@ -41,17 +44,15 @@ export default function App() {
       });
   }, []);
 
-  const draftBySystem = useMemo(() => {
-    const groups = new Map<string, DraftRecommendation[]>();
+  const bom = useMemo(
+    () => generatePreliminaryBom(analysis, draft, projectMode),
+    [analysis, draft, projectMode],
+  );
 
-    for (const recommendation of draft) {
-      const existing = groups.get(recommendation.system) ?? [];
-      existing.push(recommendation);
-      groups.set(recommendation.system, existing);
-    }
-
-    return Array.from(groups.entries());
-  }, [draft]);
+  function chooseSystem(system: SystemName) {
+    setActiveSystem(system);
+    setInspectorView("system");
+  }
 
   return (
     <main className="app-shell">
@@ -67,6 +68,9 @@ export default function App() {
         <div className="top-actions">
           <button>Project: Demo</button>
           <button>Revision: P1</button>
+          <button onClick={() => setInspectorView("bom")}>
+            BOM ({bom.length})
+          </button>
           <button className="primary">Design Check</button>
         </div>
       </header>
@@ -76,10 +80,42 @@ export default function App() {
           <h2>Systems</h2>
 
           <nav className="system-list">
-            {systems.map((system) => (
-              <button key={system}>{system}</button>
+            {SYSTEMS.map((system) => (
+              <button
+                className={activeSystem === system.name ? "active" : ""}
+                key={system.name}
+                onClick={() => chooseSystem(system.name)}
+              >
+                <span>{system.name}</span>
+                <span className="system-count">
+                  {bom.filter((item) => item.system === system.name).length}
+                </span>
+              </button>
             ))}
           </nav>
+
+          <div className="sidebar-section">
+            <h3>Project Mode</h3>
+            <div className="mode-toggle">
+              <button
+                className={projectMode === "new-build" ? "active" : ""}
+                onClick={() => setProjectMode("new-build")}
+              >
+                New Build
+              </button>
+              <button
+                className={projectMode === "retrofit" ? "active" : ""}
+                onClick={() => setProjectMode("retrofit")}
+              >
+                Retrofit
+              </button>
+            </div>
+            <p className="sidebar-note">
+              {projectMode === "retrofit"
+                ? "Preserve compatible infrastructure first; replace only what blocks the upgrade."
+                : "Assume new system design until existing conditions are explicitly marked for reuse."}
+            </p>
+          </div>
 
           <div className="sidebar-section">
             <h3>Tools</h3>
@@ -110,164 +146,15 @@ export default function App() {
           onDraftChange={setDraft}
         />
 
-        <aside className="inspector">
-          <h2>Properties</h2>
-
-          {!analysis && (
-            <div className="empty-state">
-              <p>
-                Open a DXF to inspect layers, geometry, detected room labels,
-                and first-draft recommendations.
-              </p>
-            </div>
-          )}
-
-          {analysis && (
-            <div className="analysis-panel">
-              <div className="panel-heading">
-                <h3>Drawing Analysis</h3>
-                <span className="badge">{analysis.sourceType}</span>
-              </div>
-
-              <dl className="analysis-grid">
-                <div>
-                  <dt>Units</dt>
-                  <dd>{analysis.units}</dd>
-                </div>
-                <div>
-                  <dt>Entities</dt>
-                  <dd>{analysis.entityCount.toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt>Layers</dt>
-                  <dd>{analysis.layerCount}</dd>
-                </div>
-                <div>
-                  <dt>Potential rooms</dt>
-                  <dd>{analysis.potentialRooms.length}</dd>
-                </div>
-                <div>
-                  <dt>Lines</dt>
-                  <dd>{analysis.lineCount}</dd>
-                </div>
-                <div>
-                  <dt>Polylines</dt>
-                  <dd>{analysis.polylineCount}</dd>
-                </div>
-                <div>
-                  <dt>Dimensions</dt>
-                  <dd>{analysis.dimensionCount}</dd>
-                </div>
-                <div>
-                  <dt>Blocks</dt>
-                  <dd>{analysis.insertCount}</dd>
-                </div>
-              </dl>
-
-              <div className="detected-row">
-                <span>Wall-like</span>
-                <strong>{analysis.wallLikeEntities}</strong>
-              </div>
-              <div className="detected-row">
-                <span>Door-like</span>
-                <strong>{analysis.doorLikeEntities}</strong>
-              </div>
-              <div className="detected-row">
-                <span>Window-like</span>
-                <strong>{analysis.windowLikeEntities}</strong>
-              </div>
-
-              {analysis.potentialRooms.length > 0 && (
-                <>
-                  <h4 className="panel-subheading">Detected room labels</h4>
-                  <div className="chip-list">
-                    {analysis.potentialRooms.slice(0, 14).map((room, index) => (
-                      <span
-                        className="chip"
-                        key={`${room.label}-${index}`}
-                        title={room.normalizedType}
-                      >
-                        {room.label}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {analysis.layers.length > 0 && (
-                <>
-                  <h4 className="panel-subheading">Top layers</h4>
-                  <div className="layer-list">
-                    {analysis.layers.slice(0, 10).map((layer) => (
-                      <div className="layer-row" key={layer.name}>
-                        <span title={layer.name}>{layer.name}</span>
-                        <strong>{layer.entityCount}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="issues">
-            <div className="panel-heading">
-              <h3>First Draft</h3>
-              <span className="badge">{draft.length}</span>
-            </div>
-
-            {draft.length === 0 ? (
-              <p className="muted">
-                For DXF drawings, click Generate First Draft after import.
-              </p>
-            ) : (
-              <div className="draft-list">
-                {draftBySystem.map(([system, recommendations]) => (
-                  <section className="draft-group" key={system}>
-                    <h4>{system}</h4>
-                    {recommendations.map((recommendation) => (
-                      <article className="draft-card" key={recommendation.id}>
-                        <div className="draft-card-heading">
-                          <strong>{recommendation.title}</strong>
-                          <span
-                            className={`confidence ${recommendation.confidence.toLowerCase()}`}
-                          >
-                            {recommendation.confidence}
-                          </span>
-                        </div>
-                        {recommendation.room && (
-                          <span className="room-label">
-                            {recommendation.room}
-                          </span>
-                        )}
-                        <p>{recommendation.rationale}</p>
-                      </article>
-                    ))}
-                  </section>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="issues">
-            <div className="panel-heading">
-              <h3>Design Issues</h3>
-              <span className="badge">0</span>
-            </div>
-            <p className="muted">No issues yet.</p>
-          </div>
-
-          <div className="issues">
-            <div className="panel-heading">
-              <h3>Architecture</h3>
-              <span className="badge">Hybrid</span>
-            </div>
-            <p className="muted">
-              Local-first project data with a cloud-backed product library
-              planned for later milestones.
-            </p>
-          </div>
-        </aside>
+        <Inspector
+          activeSystem={activeSystem}
+          mode={projectMode}
+          analysis={analysis}
+          draft={draft}
+          bom={bom}
+          view={inspectorView}
+          onViewChange={setInspectorView}
+        />
       </section>
     </main>
   );
