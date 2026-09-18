@@ -19,6 +19,7 @@ import {
 } from "./lib/design";
 import {
   DEFAULT_TOOLS_STATE,
+  generateToolBom,
   type ProjectTool,
   type ProjectToolsState,
 } from "./lib/projectTools";
@@ -140,13 +141,17 @@ export default function App() {
     [analysis, draft, projectMode],
   );
 
-  const bom = useMemo(
-    () =>
+  const bom = useMemo(() => {
+    const scopedBase =
       projectMode === "retrofit"
         ? applyRetrofitSurvey(baseBom, retrofitSurvey)
-        : baseBom,
-    [baseBom, projectMode, retrofitSurvey],
-  );
+        : baseBom;
+
+    return [
+      ...scopedBase,
+      ...generateToolBom(projectTools, projectMode),
+    ];
+  }, [baseBom, projectMode, retrofitSurvey, projectTools]);
 
   function chooseSystem(system: SystemName) {
     setActiveTool(null);
