@@ -1,3 +1,5 @@
+import FloorplanViewer from "@/components/FloorplanViewer";
+
 const systems = [
   "Lighting",
   "Lutron",
@@ -35,30 +37,16 @@ export default function Home() {
 
           <div className="sidebar-section">
             <h3>Tools</h3>
-            <button>Upload Floorplan</button>
+            <label className="button-like" htmlFor="floorplan-upload">
+              Upload Floorplan
+            </label>
             <button>Measure</button>
             <button>Draw Room</button>
             <button>Place Device</button>
           </div>
         </aside>
 
-        <section className="canvas-wrap">
-          <div className="canvas-toolbar">
-            <button>−</button>
-            <span>100%</span>
-            <button>+</button>
-            <button>Fit</button>
-          </div>
-
-          <div className="canvas">
-            <div className="canvas-placeholder">
-              <div className="plan-mark">+</div>
-              <h1>Floorplan Canvas</h1>
-              <p>PDF rendering and interactive placement come next.</p>
-              <button className="primary">Upload Floorplan</button>
-            </div>
-          </div>
-        </section>
+        <FloorplanViewer />
 
         <aside className="inspector">
           <h2>Properties</h2>
