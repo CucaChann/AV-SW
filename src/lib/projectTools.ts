@@ -1,4 +1,5 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
+import { qtlCandidatePowerSupply, qtlPowerSupplyById } from "./qtlCatalog";
 
 export type ProjectTool =
   | "qtl"
@@ -458,27 +459,43 @@ export function generateToolBom(
   const items: BomItem[] = [];
   const status = mode === "retrofit" ? "Verify" : "Add";
 
-  for (const run of tools.qtlRuns) {
+  for (const rawRun of tools.qtlRuns) {
+    const run: QtlRun = {
+      ...rawRun,
+      productId: rawRun.productId ?? "",
+      fixtureQty: rawRun.fixtureQty ?? 1,
+      lens: rawRun.lens ?? "TBD",
+      powerSupplyFamilyId: rawRun.powerSupplyFamilyId ?? "qz",
+      reservePct: rawRun.reservePct ?? 0,
+    };
+    const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
+    const candidate = qtlCandidatePowerSupply(
+      run.powerSupplyFamilyId,
+      qtlRunPower(run),
+    );
+
     items.push({
       id: `tool-${run.id}-fixture`,
       system: "QTL",
       manufacturer: "QTL",
-      item: `${run.application} linear lighting — ${run.room || "Unassigned"}`,
-      quantity: `${run.lengthFt.toFixed(1)} ft`,
+      item: `${run.application} — ${run.selectedFamily}`,
+      quantity: `${run.fixtureQty} × ${run.lengthFt.toFixed(2)} ft`,
       status,
       confidence: run.selectedFamily.startsWith("TBD") ? "Review" : "Medium",
-      basis: `${run.selectedFamily}; ${run.wattsPerFt} W/ft; ${qtlRunPower(run).toFixed(1)} W calculated load; ${run.cct}; ${run.voltage} V; ${run.dimming}.`,
+      basis: `${run.room || "Unassigned"}; ${run.wattsPerFt} W/ft; ${qtlRunPower(run).toFixed(1)} W connected load; ${run.cct}; ${run.environment}; ${run.lens}; ${run.dimming}.`,
     });
 
     items.push({
       id: `tool-${run.id}-driver`,
       system: "QTL",
-      manufacturer: "QTL / compatible driver",
-      item: `Driver / power supply — ${run.room || "Unassigned"}`,
-      quantity: "1 planning allowance",
+      manufacturer: "QTL",
+      item: `${psu?.name ?? "Power supply / driver"} — ${run.room || "Unassigned"}`,
+      quantity: "Engineering / quote selection",
       status,
       confidence: "Review",
-      basis: `Planning minimum ${qtlDriverMinimum(run)} W including entered reserve. Final driver model/control compatibility must match current manufacturer configuration.`,
+      basis: candidate?.wattage
+        ? `Smallest capacity in the selected ${psu?.name ?? "PSU"} family that exceeds raw connected load is ${candidate.wattage}W. This is a planning candidate only; exact QTL model, channel grouping, protocol, environment and Class 2 architecture must be verified in the current QTL configuration/quote.`
+        : `Connected load is ${qtlRunPower(run).toFixed(1)} W. Selected family does not have a simple single-capacity match in the seeded data; engineering/quote review required.`,
     });
   }
 
