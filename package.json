@@ -18,7 +18,8 @@
     "@tauri-apps/plugin-sql": "^2.0.0",
     "pdfjs-dist": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "dxf-parser": "latest"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
