@@ -150,7 +150,7 @@ export function evaluatePowerSupplyOutputGrouping(input: {
     };
   }
 
-  const largest = configurations.at(-1);
+  const largest = configurations[configurations.length - 1];
   const largestOutput = largest?.maxPerOutputW ?? 0;
   const overOutput = loadsW.find((load) => load > largestOutput + 1e-9);
   const reason = overOutput
