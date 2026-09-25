@@ -26,7 +26,8 @@ Each project is one `.avsw` file the user saves anywhere, like a CAD file. It ca
 copied to a server, backed up or sent to a colleague. The file is a ZIP container:
 
 - `manifest.json`: format name and version, and the AV-SW version that saved it
-- `project.json`: all project data (mode, survey, tools, draft, drawing list)
+- `project.json`: all project data (mode, survey, tools, draft, drawing list, and the
+  floor plan design: layers, placed items and sheet scales, since format version 2)
 - `drawings/<id>.pdf|dxf`: the original drawing files, stored uncompressed
 
 Code: `src/lib/projectFile.ts` (format), `src/lib/projectIO.ts` (dialogs and file
@@ -110,6 +111,26 @@ The software should not need to re-read an entire PDF merely to know common prod
 - DesignIssue
 - Recommendation
 - Approval
+
+## Floor plan design layer
+Devices and runs are drawn over the drawing in an SVG overlay inside the pan/zoom
+stage, so they move with it without re-rendering the drawing.
+
+- `src/lib/deviceCatalog.ts`: design layers and generic device types (symbol, layer,
+  system, suggested brands, which preliminary BOM line a type replaces). Types carry no
+  product specs; models come from the product library.
+- `src/lib/planDesign.ts`: the design model (`PlanDesign`: layers, items, sheet scales),
+  tags, lengths, nearest-room assignment, normalization of saved data.
+- `src/lib/planGeometry.ts`: drawing ↔ stage coordinates. Items are stored in drawing
+  coordinates (DXF world units, y up; PDF points, y down), so they don't depend on zoom
+  or render scale.
+- `src/lib/designBom.ts`: BOM lines grouped from placed items, and the scale for each
+  sheet (stored calibration, or the DXF's own units).
+- `src/lib/qtlBridge.ts`: links a drawn linear-light line to a QTL run
+  (`QtlRun.planItemId`). A linked line is priced by QTL Studio only.
+- `src/components/plan/`: overlay, symbols, Design panel, item card, scale menu.
+
+The design is undoable in `App.tsx` (snapshots of `PlanDesign`; typing is coalesced).
 
 ## Design architecture
 1. Understand the architectural space.
