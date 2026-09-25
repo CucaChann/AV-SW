@@ -2634,3 +2634,31 @@ button:focus-visible,
   --plan-label: #0f172a;
   --plan-halo: rgba(255, 255, 255, 0.92);
 }
+
+.schedule-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.schedule-table th,
+.schedule-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.schedule-table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

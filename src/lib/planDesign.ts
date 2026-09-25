@@ -273,12 +273,14 @@ export function parseFeet(input: string): number | null {
 }
 
 /**
- * Room label nearest to a point (DXF drawings). Only labels within a quarter of
- * the drawing's size count, so devices outside the plan stay unassigned.
+ * Room label nearest to a point (DXF drawings). Labels sit at room centers, so a
+ * device by the wall of a large room can be far from its label; only labels
+ * within half the drawing's size count, so devices placed outside the plan
+ * (title block, notes) stay unassigned.
  */
 export function nearestRoom(point: PlanPoint, rooms: RoomCandidate[], drawingExtent: number) {
   let best: RoomCandidate | null = null;
-  let bestDistance = drawingExtent * 0.25;
+  let bestDistance = drawingExtent * 0.5;
   for (const room of rooms) {
     const gap = distance(point, room.position);
     if (gap <= bestDistance) {

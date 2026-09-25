@@ -25,9 +25,9 @@ import {
   type DraftRecommendation,
   type ParsedDxfDrawing,
 } from "../lib/dxf";
+import { effectiveScale } from "../lib/designBom";
 import {
   distance,
-  dxfUnitsPerFoot,
   formatFeet,
   itemsOnSheet,
   layerOf,
@@ -355,13 +355,9 @@ export default function DrawingViewer({
   }, [drawingKind, dxfDrawing, pdfSize]);
 
   const storedScale = drawingId ? scaleFor(design, drawingId, page) : undefined;
-  const scale: DrawingScale | undefined = useMemo(() => {
-    if (storedScale || !drawingId || drawingKind !== "dxf" || !dxfDrawing) return storedScale;
-    const unitsPerFoot = dxfUnitsPerFoot(dxfDrawing.analysis.units);
-    return unitsPerFoot
-      ? { drawingId, page: 1, unitsPerFoot, label: `DXF ${dxfDrawing.analysis.units.toLowerCase()}` }
-      : undefined;
-  }, [storedScale, drawingId, drawingKind, dxfDrawing]);
+  const scale: DrawingScale | undefined = drawingId
+    ? effectiveScale(design, drawingId, page, drawingKind === "dxf" ? (dxfDrawing?.analysis.units ?? null) : null)
+    : undefined;
 
   const layerState = useMemo(() => new Map(design.layers.map((layer) => [layer.key, layer])), [design.layers]);
   const isLocked = useCallback(
@@ -444,7 +440,6 @@ export default function DrawingViewer({
       points,
     };
     onDesignChange({ ...design, items: [...design.items, run] });
-    setSelectedId(run.id);
   }
 
   function handleClick(event: MouseEvent<HTMLDivElement>, itemId: string | null) {
@@ -474,8 +469,8 @@ export default function DrawingViewer({
         at: point,
         rotation: 0,
       };
+      // No selection while placing: the item card would cover the next click. The tag shows on the plan.
       onDesignChange({ ...design, items: [...design.items, device] });
-      setSelectedId(device.id);
       return;
     }
 

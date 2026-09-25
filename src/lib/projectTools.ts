@@ -15,6 +15,7 @@ export type ProjectTool =
   | "cabling"
   | "budget"
   | "library"
+  | "schedule"
   | "validate";
 
 export type DesignTier = "Core" | "Refined" | "Signature";

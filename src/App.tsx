@@ -24,11 +24,13 @@ import {
   type ProjectTool,
   type ProjectToolsState,
 } from "./lib/projectTools";
+import { designBom, effectiveScale, mergeDesignBom } from "./lib/designBom";
 import { initializePersistence } from "./lib/persistence";
 import {
   moveDesignToDrawing,
   removeDrawingFromDesign,
   type PlanDesign,
+  type PlanItem,
 } from "./lib/planDesign";
 import {
   activeDrawing,
@@ -83,6 +85,7 @@ const PROJECT_TOOLS: Array<{ id: ProjectTool; label: string }> = [
   { id: "video", label: "Video Chain" },
   { id: "cabling", label: "Cabling" },
   { id: "budget", label: "Budget" },
+  { id: "schedule", label: "Device Schedule" },
   { id: "library", label: "Library" },
   { id: "validate", label: "Validate" },
 ];
@@ -509,6 +512,20 @@ function Workspace({ initial }: { initial: Session }) {
     [analysis, draft, projectMode],
   );
 
+  // Scale per sheet; DXF units are only known for the drawing currently parsed.
+  const dxfUnits = analysis?.units ?? null;
+  const scaleOf = useCallback(
+    (item: PlanItem) =>
+      effectiveScale(
+        project.design,
+        item.drawingId,
+        item.page,
+        item.drawingId === project.activeDrawingId ? dxfUnits : null,
+      ),
+    [project.design, project.activeDrawingId, dxfUnits],
+  );
+  const planBom = useMemo(() => designBom(project.design, scaleOf), [project.design, scaleOf]);
+
   const bom = useMemo(() => {
     const scopedBase =
       projectMode === "retrofit"
@@ -516,10 +533,10 @@ function Workspace({ initial }: { initial: Session }) {
         : baseBom;
 
     return [
-      ...scopedBase,
+      ...mergeDesignBom(scopedBase, planBom),
       ...generateToolBom(projectTools, projectMode),
     ];
-  }, [baseBom, projectMode, retrofitSurvey, projectTools]);
+  }, [baseBom, planBom, projectMode, retrofitSurvey, projectTools]);
 
   const issues = useMemo(
     () =>
@@ -729,6 +746,8 @@ function Workspace({ initial }: { initial: Session }) {
             bom={bom}
             mode={projectMode}
             survey={retrofitSurvey}
+            design={project.design}
+            scaleOf={scaleOf}
           />
         )}
 
