@@ -63,9 +63,9 @@ describe("qtlRunPsuCandidate", () => {
 
   it("warns when no reserve is set", () => {
     const run = { ...newQtlRun(), room: "Kitchen", feed: "Left" as const };
-    expect(qtlRunWarnings(run).some((w) => w.startsWith("No design reserve"))).toBe(true);
+    expect(qtlRunWarnings(run).some((w) => w.startsWith("No optional design reserve"))).toBe(true);
     expect(
-      qtlRunWarnings({ ...run, reservePct: 20 }).some((w) => w.startsWith("No design reserve")),
+      qtlRunWarnings({ ...run, reservePct: 20 }).some((w) => w.startsWith("No optional design reserve")),
     ).toBe(false);
   });
 });
