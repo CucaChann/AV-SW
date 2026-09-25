@@ -5,6 +5,7 @@ import {
   qtlCandidatePowerSupply,
   qtlPowerSupplyById,
 } from "./qtlCatalog";
+import { isRecord, listWithDefaults, withDefaults } from "./sanitize";
 
 export type ProjectTool =
   | "qtl"
@@ -177,6 +178,33 @@ export const DEFAULT_TOOLS_STATE: ProjectToolsState = {
     notes: "",
   },
 };
+
+/**
+ * Saved tool state with missing or wrong-typed fields reset to defaults,
+ * including inside every list item (see sanitize.ts). Items saved by older
+ * versions may lack fields added since.
+ */
+export function normalizeTools(value: unknown, repairs?: string[]): ProjectToolsState {
+  if (value !== undefined && !isRecord(value)) repairs?.push("tools");
+  const parsed = isRecord(value) ? value : {};
+  const budget = withDefaults(parsed.budget, DEFAULT_TOOLS_STATE.budget, "tools.budget", repairs);
+  return {
+    network: withDefaults(parsed.network, DEFAULT_TOOLS_STATE.network, "tools.network", repairs),
+    budget: {
+      ...budget,
+      allocations: withDefaults(
+        isRecord(parsed.budget) ? parsed.budget.allocations : undefined,
+        DEFAULT_TOOLS_STATE.budget.allocations,
+        "tools.budget.allocations",
+        repairs,
+      ),
+    },
+    qtlRuns: listWithDefaults(parsed.qtlRuns, newQtlRun, "tools.qtlRuns", repairs),
+    audioZones: listWithDefaults(parsed.audioZones, newAudioZone, "tools.audioZones", repairs),
+    videoChains: listWithDefaults(parsed.videoChains, newVideoChain, "tools.videoChains", repairs),
+    cableRuns: listWithDefaults(parsed.cableRuns, newCableRun, "tools.cableRuns", repairs),
+  };
+}
 
 export const MANUFACTURERS: ManufacturerSummary[] = [
   { name: "Lutron", categories: ["Lighting Control", "Shades", "Ketra"], focus: "Controls, keypads, load control, processors, shades, lighting." },

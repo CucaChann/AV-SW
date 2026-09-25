@@ -20,19 +20,37 @@ AV-SW is a hybrid, desktop-first application.
 The same React frontend should remain browser-runnable during development. Browser mode is a fallback/development mode, not the long-term primary product.
 
 ## Local persistence
-- SQLite inside the Tauri application
-- Local project metadata and design state
-- Current project revisions
-- Placed devices and geometry
-- Project-specific vendor quotes and documents
-- Offline product/document cache
 
-Initial SQLite tables:
+### Project files (.avsw)
+Each project is one `.avsw` file the user saves anywhere, like a CAD file. It can be
+copied to a server, backed up or sent to a colleague. The file is a ZIP container:
+
+- `manifest.json`: format name and version, and the AV-SW version that saved it
+- `project.json`: all project data (mode, survey, tools, draft, drawing list)
+- `drawings/<id>.pdf|dxf`: the original drawing files, stored uncompressed
+
+Code: `src/lib/projectFile.ts` (format), `src/lib/projectIO.ts` (dialogs and file
+access), `src-tauri/src/files.rs` (native read, and atomic write via a temporary
+file and rename). Opening a newer format version is refused with a clear message
+instead of losing data. Every saved value is checked against the type of its default
+(`src/lib/sanitize.ts`); invalid values are reset and the user is told which fields
+changed, so a damaged file opens instead of crashing the workspace.
+
+### Recovery copy
+The open project, drawings included, is copied to the app's IndexedDB shortly after
+every change (`src/lib/recovery.ts`). Each drawing is stored once when it is added;
+later updates only write the small project data, so large drawing sets don't stall
+the UI. After a crash, forced shutdown or reload, AV-SW
+reopens exactly where the user left off, unsaved changes included. Choosing
+"Don't Save" when closing discards the copy.
+
+### SQLite
+The app-level SQLite database (`av-sw.db`) is reserved for data that belongs to the
+installation rather than to one project: settings, the offline product/document
+cache and the local product library. Initial tables:
 - projects
 - project_files
 - app_settings
-
-The schema will expand as design objects are implemented.
 
 ## Cloud knowledge layer — planned
 The cloud layer is not required for the first desktop milestone.

@@ -17,9 +17,10 @@ The desktop application should keep active work available without internet:
 - recently used manufacturer documents
 - user preferences
 
-SQLite is the local structured-data store.
-
-Project-specific files will be stored in an AV-SW-managed local project workspace in a later milestone.
+Each project is saved as a single `.avsw` file chosen by the user, with its drawings
+embedded (see `docs/ARCHITECTURE.md`, "Project files"). A recovery copy of the open
+project protects unsaved work. SQLite holds installation-level data such as settings
+and the offline product/document cache.
 
 ## Cloud-backed knowledge library
 
