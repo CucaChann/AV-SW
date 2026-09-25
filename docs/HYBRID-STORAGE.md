@@ -61,8 +61,8 @@ Project documents such as vendor quotes are treated differently from global manu
 
 Example:
 
-Whitman / Lutron Shade Quote REV.1
-→ stored with the Whitman project
+Example Residence / Lutron Shade Quote REV.1
+→ stored with the Example Residence project
 → structured line-item extraction
 → linked to the drawing revision it was based on
 → compared with the current design
