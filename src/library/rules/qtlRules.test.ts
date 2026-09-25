@@ -184,6 +184,17 @@ describe("QTL QZ output grouping", () => {
     expect(result.explanation).toContain("per-output limit");
   });
 
+  it("accepts a decimal sum that is mathematically exactly the 96 W output limit", () => {
+    const result = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      voltageV: 24,
+      loadsW: [31.1, 32.2, 32.7],
+    });
+
+    expect(result.fits).toBe(true);
+    expect(result.selectedCapacityW).toBe(96);
+  });
+
   it("does not round a real overload down to the 96 W output limit", () => {
     const result = evaluatePowerSupplyOutputGrouping({
       rule: qzPro,
