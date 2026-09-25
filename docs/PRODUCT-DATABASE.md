@@ -1,5 +1,9 @@
 # Product Database
 
+> The implemented library schema, data files and review workflow are described in
+> `docs/PRODUCT-LIBRARY.md`. The field list below is the backlog of specs to add to
+> `src/library/specs.ts` as products need them.
+
 ## Goal
 Create a versioned manufacturer/product library that separates factual product data from design rules.
 

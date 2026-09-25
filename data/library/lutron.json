@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "lutron-homeworks-submittals",
+      "kind": "manufacturer-web",
+      "title": "HomeWorks product specification submittals",
+      "publisher": "lutron",
+      "url": "https://support.lutron.com/us/en/product/homeworks/documents/product-specification-submittals"
+    },
+    {
+      "id": "lutron-ketra-submittals",
+      "kind": "manufacturer-web",
+      "title": "HomeWorks Ketra product specification submittals",
+      "publisher": "lutron",
+      "url": "https://support.lutron.com/us/en/product/homeworks/component/downlights/ketra/documents/product-specification-submittals"
+    },
+    {
+      "id": "lutron-sivoia-qs-submittals",
+      "kind": "manufacturer-web",
+      "title": "Sivoia QS roller shade product specification submittals",
+      "publisher": "lutron",
+      "url": "https://support.lutron.com/us/en/product/shades/component/roller-shades/sivoia-qs/documents/product-specification-submittals"
+    }
+  ],
+  "ecosystems": [
+    {
+      "id": "lutron-homeworks-qsx",
+      "manufacturerId": "lutron",
+      "name": "HomeWorks QSX",
+      "description": "Lutron's whole-home lighting, shading and keypad control system.",
+      "source": { "sourceId": "lutron-homeworks-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "Structure only. Confirm the ecosystem name on the cited page."
+      }
+    }
+  ],
+  "families": [
+    {
+      "id": "lutron-homeworks-qsx-processors",
+      "manufacturerId": "lutron",
+      "ecosystemIds": ["lutron-homeworks-qsx"],
+      "name": "HomeWorks QSX processors",
+      "category": "control.processor",
+      "source": { "sourceId": "lutron-homeworks-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "No model records yet: add each processor model with its spec-sheet source."
+      }
+    },
+    {
+      "id": "lutron-palladiom-keypads",
+      "manufacturerId": "lutron",
+      "ecosystemIds": ["lutron-homeworks-qsx"],
+      "name": "Palladiom keypads",
+      "category": "control.keypad",
+      "source": { "sourceId": "lutron-homeworks-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "No model records yet: add keypad models (button configurations, finishes) from the spec sheets."
+      }
+    },
+    {
+      "id": "lutron-sivoia-qs-shades",
+      "manufacturerId": "lutron",
+      "ecosystemIds": ["lutron-homeworks-qsx"],
+      "name": "Sivoia QS shades",
+      "category": "shading.shade",
+      "source": { "sourceId": "lutron-sivoia-qs-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "No model records yet: add shade types and size limits from the spec sheets."
+      }
+    },
+    {
+      "id": "lutron-ketra",
+      "manufacturerId": "lutron",
+      "ecosystemIds": ["lutron-homeworks-qsx"],
+      "name": "Ketra",
+      "category": "lighting.fixture",
+      "source": { "sourceId": "lutron-ketra-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "No model records yet: add Ketra downlights, lamps and linear products from the spec sheets."
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "lutron-palladiom-needs-homeworks-processor",
+      "subject": {
+        "familyId": "lutron-palladiom-keypads",
+        "ecosystemId": "lutron-homeworks-qsx"
+      },
+      "kind": "control",
+      "description": "In a HomeWorks QSX system, Palladiom keypads are controlled by a HomeWorks QSX processor, so the design needs at least one processor.",
+      "satisfiedBy": [{ "familyId": "lutron-homeworks-qsx-processors" }],
+      "source": { "sourceId": "lutron-homeworks-submittals" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "From general product knowledge; not checked against the cited page. When processor models are added, capture link types and device limits so this can become a counted rule."
+      }
+    }
+  ]
+}

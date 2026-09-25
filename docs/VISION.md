@@ -5,6 +5,19 @@ AV-SW is a design-first platform for residential AV, lighting, networking, shadi
 ## Core principle
 The design is the source of truth. BOMs, vendor quotes, schedules, and proposals are downstream outputs of the design.
 
+## Product experience
+AV-SW should feel like a professional installed design application, not a website that disappears with a browser tab.
+
+The long-term experience is:
+- launch AV-SW from the Windows Start menu,
+- create/open local projects,
+- import architectural drawings,
+- design and validate systems,
+- work offline when needed,
+- use a cloud-backed manufacturer knowledge library when connected,
+- cache project-relevant documentation for offline use,
+- optionally synchronize projects for backup/collaboration.
+
 ## Primary workflows
 - Upload and calibrate architectural floorplans.
 - Model rooms, walls, openings, millwork constraints, and elevations.

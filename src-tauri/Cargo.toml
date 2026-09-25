@@ -1,0 +1,17 @@
+[package]
+name = "av-sw"
+version = "0.2.0"
+description = "AV-SW design-first AV, lighting, networking and automation workspace"
+authors = ["AV-SW"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
