@@ -77,6 +77,30 @@ describe("QTL linear ordering", () => {
     expect(result.nearestUpperTotalIn).toBe(242);
   });
 
+  it("suggests the published minimum for a run shorter than one fixture", () => {
+    const result = evaluateLinearOrdering({
+      rule: kurv,
+      requestedTotalIn: 6,
+      variant: "static-white",
+    });
+
+    expect(result.orderable).toBe(false);
+    expect(result.nearestLowerTotalIn).toBeNull();
+    expect(result.nearestUpperTotalIn).toBe(12);
+  });
+
+  it("treats an explicitly requested unpublished ordering mode as unknown", () => {
+    const result = evaluateLinearOrdering({
+      rule: kurv,
+      requestedTotalIn: 120,
+      variant: "static-white",
+      orderingMode: "optimal",
+    });
+
+    expect(result.orderable).toBeNull();
+    expect(result.explanation).toContain("not published");
+  });
+
   it("enforces VERS min/max without inventing an unpublished increment", () => {
     const result = evaluateLinearOrdering({
       rule: vers,
@@ -160,6 +184,29 @@ describe("QTL QZ output grouping", () => {
     expect(result.explanation).toContain("per-output limit");
   });
 
+  it("does not round a real overload down to the 96 W output limit", () => {
+    const result = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      voltageV: 24,
+      loadsW: [96.0004],
+    });
+
+    expect(result.fits).toBe(false);
+    expect(result.selectedCapacityW).toBeNull();
+  });
+
+  it("rejects a many-small-load group quickly from the safe infeasibility bound", () => {
+    const loads = Array.from({ length: 34 }, (_, index) => 8.3 + (index % 4) * 0.1);
+    const result = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      voltageV: 24,
+      loadsW: loads,
+    });
+
+    expect(result.fits).toBe(false);
+    expect(result.selectedCapacityW).toBeNull();
+  });
+
   it("uses three outputs for three 80 W loads", () => {
     const result = evaluatePowerSupplyOutputGrouping({
       rule: qzPro,
@@ -196,6 +243,46 @@ describe("QTL QZ output grouping", () => {
     expect(wrongControl.compatible).toBe(false);
     expect(wrongControl.compatibilityIssues[0]).toContain("does not list dmx control");
   });
+
+  it("treats missing compatibility facts and generic phase edges as unknown", () => {
+    const emptyCarrier = { ...qzProFamily, specs: {} };
+    const missing = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      powerSupply: emptyCarrier,
+      voltageV: 24,
+      dimmingMethod: "dmx",
+      environment: "wet",
+      loadsW: [50],
+    });
+    const phaseEdge = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      powerSupply: qzProFamily,
+      voltageV: 24,
+      dimmingMethod: "reverse-phase",
+      environment: "wet",
+      loadsW: [50],
+    });
+
+    expect(missing.compatible).toBeNull();
+    expect(missing.fits).toBeNull();
+    expect(missing.compatibilityUnknowns).toHaveLength(3);
+    expect(phaseEdge.compatible).toBeNull();
+    expect(phaseEdge.fits).toBeNull();
+    expect(phaseEdge.compatibilityUnknowns[0]).toContain("does not state whether reverse-phase");
+  });
+
+  it("applies a designer reserve as project policy rather than a manufacturer fact", () => {
+    const result = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      voltageV: 24,
+      loadsW: [90],
+      designReservePct: 10,
+    });
+
+    expect(result.selectedCapacityW).toBe(192);
+    expect(result.explanation).toContain("designer-set 10% reserve");
+    expect(result.explanation).toContain("not a QTL manufacturer requirement");
+  });
 });
 
 describe("QTL voltage-drop guidance", () => {
@@ -209,6 +296,17 @@ describe("QTL voltage-drop guidance", () => {
     expect(result.targetDropPercent).toBe(3);
     expect(result.maxDropV).toBe(0.72);
     expect(result.withinTarget).toBeNull();
+  });
+
+  it("compares boundary voltage drop before display rounding", () => {
+    const result = evaluateVoltageDropGuidance({
+      rule: voltage,
+      loadWatts: 60,
+      estimatedDropV: 0.7204,
+    });
+
+    expect(result.estimatedDropV).toBe(0.72);
+    expect(result.withinTarget).toBe(false);
   });
 
   it("passes and fails entered drops against the same sourced target", () => {
