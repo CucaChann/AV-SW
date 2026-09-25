@@ -60,7 +60,7 @@ export type QtlPreset = {
  * on it must say so. Remove once the QTL data moves into the library.
  */
 export const QTL_CATALOG_REVIEW_NOTE =
-  "QTL capacities and options come from the seeded QTL catalog, which has not yet been source-verified in the product library.";
+  "Legacy catalog entries remain planning-only for QTL families not yet migrated. Where source-backed library records and deterministic rules exist, QTL Studio uses them first; AI-added records stay proposed until a person verifies the cited documents.";
 
 export const QTL_FAMILY_OVERVIEW = [
   {
