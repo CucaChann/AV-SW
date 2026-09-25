@@ -1,0 +1,506 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "qtl-kurv-web",
+      "kind": "manufacturer-web",
+      "title": "Q-CAP KURV",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/products/kurv/",
+      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them."
+    },
+    {
+      "id": "qtl-vers-flush-02-web",
+      "kind": "manufacturer-web",
+      "title": "VERS-FLUSH (02)",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/products/vers-flush-02/",
+      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them."
+    },
+    {
+      "id": "qtl-qz-pro-spec",
+      "kind": "spec-sheet",
+      "title": "QZ-PRO-PH/0-10V 24V DC Power Supply - 30W-288W",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/SPEC_SHEET/QTL_QZ-PRO-PH_0-10V.pdf",
+      "documentRevision": "Rev-08-24-26"
+    },
+    {
+      "id": "qtl-qz-pro-ordering",
+      "kind": "install-guide",
+      "title": "QZ-PRO-PH/0-10V Master Ordering Guide Set",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/qz-pro-ph0-10v-master-ordering-guide-set-761.pdf",
+      "notes": "Includes the installation wiring diagrams used for output-channel grouping."
+    },
+    {
+      "id": "qtl-qz-nd-spec",
+      "kind": "spec-sheet",
+      "title": "QZ-ND 24V DC Power Supply - 30W-288W",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/SPEC_SHEET/QTL_QZ-ND.pdf",
+      "documentRevision": "Rev-08-24-26"
+    },
+    {
+      "id": "qtl-qz-nd-ordering",
+      "kind": "install-guide",
+      "title": "QZ-ND Master Ordering Guide Set",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/qz-nd-master-ordering-guide-set-434.pdf",
+      "notes": "Includes the installation wiring diagrams used for output-channel grouping."
+    },
+    {
+      "id": "qtl-voltage-drop-blog",
+      "kind": "manufacturer-web",
+      "title": "How to Fix Voltage Drop Between Power Supply and Fixture",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/blog/how-to-fix-voltage-drop-in-long-led-strip-runs/",
+      "documentRevision": "2026-08-06"
+    },
+    {
+      "id": "qtl-voltage-drop-calculator",
+      "kind": "manufacturer-web",
+      "title": "Voltage Drop Calculator",
+      "publisher": "qtl",
+      "url": "https://www.qtl.lighting/voltage-drop-calculator/"
+    }
+  ],
+  "families": [
+    {
+      "id": "qtl-qcap-kurv",
+      "manufacturerId": "qtl",
+      "name": "Q-CAP KURV",
+      "category": "lighting.linear",
+      "description": "Side-bending flexible encapsulated linear fixture.",
+      "specs": {
+        "linear.minLengthIn": {
+          "value": 12,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-kurv-web",
+            "locator": "Technical Information > Length"
+          }
+        },
+        "linear.maxLengthIn": {
+          "value": 191,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-kurv-web",
+            "locator": "Technical Information > Length"
+          }
+        },
+        "linear.bendRadiusIn": {
+          "value": 6,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-kurv-web",
+            "locator": "Technical Information > Bend Radius"
+          }
+        },
+        "linear.lightEngines": {
+          "value": [
+            "static-white",
+            "static-white-he",
+            "dynamic-white-tunable",
+            "warm-dim",
+            "rgb",
+            "rgbw",
+            "rgbw-he",
+            "static-color"
+          ],
+          "source": {
+            "sourceId": "qtl-kurv-web",
+            "locator": "Technical Information > LED Light Engine"
+          }
+        },
+        "environment.ratings": {
+          "value": [
+            "dry",
+            "wet",
+            "submersible"
+          ],
+          "source": {
+            "sourceId": "qtl-kurv-web",
+            "locator": "Technical Information > Rated"
+          }
+        }
+      },
+      "source": {
+        "sourceId": "qtl-kurv-web"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Min/max and the SW/SW-HE ordering increments were read from QTL's current product page. Other light-engine ordering increments remain unknown."
+      }
+    },
+    {
+      "id": "qtl-vers-flush-02",
+      "manufacturerId": "qtl",
+      "name": "VERS-FLUSH (02)",
+      "category": "lighting.linear",
+      "description": "Rigid surface-mount linear fixture with a flush co-extruded lens.",
+      "specs": {
+        "linear.minLengthIn": {
+          "value": 12,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-vers-flush-02-web",
+            "locator": "Technical Information > Length"
+          }
+        },
+        "linear.maxLengthIn": {
+          "value": 98,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-vers-flush-02-web",
+            "locator": "Technical Information > Length"
+          }
+        },
+        "environment.ratings": {
+          "value": [
+            "dry",
+            "damp"
+          ],
+          "source": {
+            "sourceId": "qtl-vers-flush-02-web",
+            "locator": "Technical Information > Rated"
+          }
+        }
+      },
+      "source": {
+        "sourceId": "qtl-vers-flush-02-web"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Current product page publishes min/max length but not a simple universal ordering increment; the engine must not invent one."
+      }
+    },
+    {
+      "id": "qtl-qz-pro-ph-010",
+      "manufacturerId": "qtl",
+      "name": "QZ-PRO-PH/0-10V",
+      "category": "lighting.power-supply",
+      "description": "24VDC Class 2 LED driver with phase or 0-10V dimming and field-adjustable output for voltage-drop compensation.",
+      "specs": {
+        "electrical.outputVoltageV": {
+          "value": 24,
+          "unit": "V",
+          "source": {
+            "sourceId": "qtl-qz-pro-spec",
+            "locator": "Page 1 > Secondary Voltage"
+          }
+        },
+        "electrical.adjustableOutputMinV": {
+          "value": 17,
+          "unit": "V",
+          "source": {
+            "sourceId": "qtl-qz-pro-spec",
+            "locator": "Page 2 > Product Information"
+          }
+        },
+        "electrical.adjustableOutputMaxV": {
+          "value": 26,
+          "unit": "V",
+          "source": {
+            "sourceId": "qtl-qz-pro-spec",
+            "locator": "Page 2 > Product Information"
+          }
+        },
+        "dimming.methods": {
+          "value": [
+            "forward-phase",
+            "reverse-phase",
+            "0-10v"
+          ],
+          "source": {
+            "sourceId": "qtl-qz-pro-spec",
+            "locator": "Page 2 > PH/010 Dimming"
+          }
+        },
+        "environment.ratings": {
+          "value": [
+            "dry",
+            "damp",
+            "wet"
+          ],
+          "source": {
+            "sourceId": "qtl-qz-pro-spec",
+            "locator": "Page 2 > Product Information"
+          }
+        },
+        "installation.minimumAdjacentSpacingIn": {
+          "value": 3,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-qz-pro-ordering",
+            "locator": "Installation Instructions page 7"
+          }
+        }
+      },
+      "source": {
+        "sourceId": "qtl-qz-pro-spec"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Output grouping follows QTL's wiring diagram: 192W is 2x96W and 288W is 3x96W."
+      }
+    },
+    {
+      "id": "qtl-qz-nd",
+      "manufacturerId": "qtl",
+      "name": "QZ-ND",
+      "category": "lighting.power-supply",
+      "description": "24VDC constant-voltage non-dimming Class 2 LED driver family.",
+      "specs": {
+        "electrical.outputVoltageV": {
+          "value": 24,
+          "unit": "V",
+          "source": {
+            "sourceId": "qtl-qz-nd-spec",
+            "locator": "Technical Information > Secondary Voltage"
+          }
+        },
+        "dimming.methods": {
+          "value": [
+            "non-dimming"
+          ],
+          "source": {
+            "sourceId": "qtl-qz-nd-spec",
+            "locator": "Technical Information > Dimming Protocol"
+          }
+        },
+        "environment.ratings": {
+          "value": [
+            "dry",
+            "damp",
+            "wet"
+          ],
+          "source": {
+            "sourceId": "qtl-qz-nd-spec",
+            "locator": "Product Information"
+          }
+        },
+        "installation.minimumAdjacentSpacingIn": {
+          "value": 3,
+          "unit": "in",
+          "source": {
+            "sourceId": "qtl-qz-nd-ordering",
+            "locator": "Installation Instructions page 6"
+          }
+        }
+      },
+      "source": {
+        "sourceId": "qtl-qz-nd-spec"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Output grouping follows QTL's wiring diagram: 192W is 2x96W and 288W is 3x96W."
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "qtl-kurv-linear-ordering",
+      "kind": "linear-ordering",
+      "title": "Q-CAP KURV fixture length ordering",
+      "description": "Checks KURV fixture lengths and creates the fewest orderable segments without losing total length.",
+      "severity": "error",
+      "load": {
+        "familyId": "qtl-qcap-kurv"
+      },
+      "params": {
+        "variants": [
+          {
+            "variant": "static-white",
+            "minLengthIn": 12,
+            "maxLengthIn": 191,
+            "lengthIncrementIn": 1
+          },
+          {
+            "variant": "static-white-he",
+            "minLengthIn": 12,
+            "maxLengthIn": 191,
+            "lengthIncrementIn": 2
+          }
+        ]
+      },
+      "source": {
+        "sourceId": "qtl-kurv-web",
+        "locator": "Technical Information > Length"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Only the SW and SW-HE increments are published on the product page; other engines intentionally have no rule yet."
+      }
+    },
+    {
+      "id": "qtl-vers-flush-02-linear-ordering",
+      "kind": "linear-ordering",
+      "title": "VERS-FLUSH (02) fixture length limits",
+      "description": "Checks published fixture minimum and maximum length without inventing an ordering increment.",
+      "severity": "error",
+      "load": {
+        "familyId": "qtl-vers-flush-02"
+      },
+      "params": {
+        "variants": [
+          {
+            "variant": "default",
+            "minLengthIn": 12,
+            "maxLengthIn": 98
+          }
+        ]
+      },
+      "source": {
+        "sourceId": "qtl-vers-flush-02-web",
+        "locator": "Technical Information > Length"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "No universal ordering increment was found on the current product page, so exact orderability remains unknown."
+      }
+    },
+    {
+      "id": "qtl-qz-pro-output-grouping",
+      "kind": "power-supply-output-grouping",
+      "title": "QZ-PRO output grouping",
+      "description": "Selects the smallest published QZ-PRO capacity whose Class 2 outputs can carry the entered loads.",
+      "severity": "error",
+      "load": {
+        "familyId": "qtl-qz-pro-ph-010"
+      },
+      "params": {
+        "voltageV": 24,
+        "configurations": [
+          {
+            "totalCapacityW": 30,
+            "outputCount": 1,
+            "maxPerOutputW": 30
+          },
+          {
+            "totalCapacityW": 60,
+            "outputCount": 1,
+            "maxPerOutputW": 60
+          },
+          {
+            "totalCapacityW": 96,
+            "outputCount": 1,
+            "maxPerOutputW": 96
+          },
+          {
+            "totalCapacityW": 192,
+            "outputCount": 2,
+            "maxPerOutputW": 96
+          },
+          {
+            "totalCapacityW": 288,
+            "outputCount": 3,
+            "maxPerOutputW": 96
+          }
+        ]
+      },
+      "source": {
+        "sourceId": "qtl-qz-pro-ordering",
+        "locator": "Installation wiring diagram"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule."
+      }
+    },
+    {
+      "id": "qtl-qz-nd-output-grouping",
+      "kind": "power-supply-output-grouping",
+      "title": "QZ-ND output grouping",
+      "description": "Selects the smallest published QZ-ND capacity whose Class 2 outputs can carry the entered loads.",
+      "severity": "error",
+      "load": {
+        "familyId": "qtl-qz-nd"
+      },
+      "params": {
+        "voltageV": 24,
+        "configurations": [
+          {
+            "totalCapacityW": 30,
+            "outputCount": 1,
+            "maxPerOutputW": 30
+          },
+          {
+            "totalCapacityW": 60,
+            "outputCount": 1,
+            "maxPerOutputW": 60
+          },
+          {
+            "totalCapacityW": 96,
+            "outputCount": 1,
+            "maxPerOutputW": 96
+          },
+          {
+            "totalCapacityW": 192,
+            "outputCount": 2,
+            "maxPerOutputW": 96
+          },
+          {
+            "totalCapacityW": 288,
+            "outputCount": 3,
+            "maxPerOutputW": 96
+          }
+        ]
+      },
+      "source": {
+        "sourceId": "qtl-qz-nd-ordering",
+        "locator": "Installation wiring diagram"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule."
+      }
+    },
+    {
+      "id": "qtl-24v-voltage-drop-guidance",
+      "kind": "voltage-drop-guidance",
+      "title": "QTL 24V voltage-drop design target",
+      "description": "Evaluates an entered or separately calculated voltage drop against QTL's 1%, 3% and 5% design tiers.",
+      "severity": "warning",
+      "load": {
+        "manufacturerId": "qtl"
+      },
+      "params": {
+        "nominalVoltageV": 24,
+        "allowedDropPercents": [
+          1,
+          3,
+          5
+        ],
+        "defaultDropPercent": 3,
+        "dimmerVoltageFactor": 0.917
+      },
+      "source": {
+        "sourceId": "qtl-voltage-drop-blog",
+        "locator": "Using the QTL Voltage Drop Calculator"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "QTL calls 3% a reasonable default for most residential/general commercial work. This rule does not invent wire resistance; predicted wire length remains a separate sourced calculation."
+      }
+    }
+  ]
+}
