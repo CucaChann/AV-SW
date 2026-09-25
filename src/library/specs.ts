@@ -25,6 +25,7 @@ export const UNITS = [
 export type Unit = (typeof UNITS)[number];
 
 export const DIMMING_METHODS = [
+  "phase",
   "forward-phase",
   "reverse-phase",
   "0-10v",
