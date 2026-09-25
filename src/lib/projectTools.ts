@@ -274,8 +274,8 @@ export function audioZoneWarnings(zone: AudioZone) {
   const warnings: string[] = [];
   if (!zone.room.trim()) warnings.push("Room is not assigned.");
   if (zone.speakerCount <= 0) warnings.push("Speaker quantity must be greater than zero.");
-  if (zone.amplification === "TBD" && zone.speakerType !== "Powered Speaker") {
-    warnings.push("Passive speaker zone requires an amplification strategy.");
+  if (zone.amplification === "TBD") {
+    warnings.push("Amplification is TBD: passive speakers need an amplifier, or select Powered Speaker.");
   }
   if (zone.speakerCount > 4 && zone.amplification === "Sonos Amp") {
     warnings.push("High speaker count on one simple zone: verify impedance, wiring topology and amplifier load.");

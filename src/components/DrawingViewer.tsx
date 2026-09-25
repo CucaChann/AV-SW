@@ -112,6 +112,7 @@ export default function DrawingViewer({
   useEffect(() => {
     if (drawingKind !== "pdf" || !document) return;
 
+    const pdf = document;
     let cancelled = false;
 
     async function renderPage() {
@@ -121,17 +122,16 @@ export default function DrawingViewer({
       setRendering(true);
 
       try {
-        const page = await document.getPage(pageNumber);
+        const page = await pdf.getPage(pageNumber);
         const viewport = page.getViewport({ scale: 1.5 });
-        const context = canvas.getContext("2d");
 
-        if (!context || cancelled) return;
+        if (cancelled) return;
 
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
 
         await page.render({
-          canvasContext: context,
+          canvas,
           viewport,
         }).promise;
 
