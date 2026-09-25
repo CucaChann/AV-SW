@@ -176,11 +176,35 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
         "Control / Dimming",
         "PSU Family",
         "Planning PSU Candidate",
+        "Rule Status",
+        "Voltage-drop guidance",
         "Notes",
       ],
       ...state.qtlRuns.map((raw) => {
         const run = normalizedRun(raw);
-        const candidate = qtlRunPsuCandidate(run);
+        const legacyCandidate = qtlRunPsuCandidate(run);
+        const assessment = assessQtlRun(run);
+        const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+        const powerCandidate = assessment.power.covered
+          ? sourcedCapacity
+            ? String(sourcedCapacity) + "W proposed-library candidate"
+            : "Proposed-library rule: review"
+          : legacyCandidate?.mismatches.length
+            ? "Legacy catalog: incompatible PSU family"
+            : legacyCandidate?.wattage
+              ? String(legacyCandidate.wattage) + "W legacy planning candidate"
+              : "Engineering / quote review";
+        const hasLibraryCoverage =
+          assessment.ordering.covered ||
+          assessment.power.covered ||
+          assessment.voltageDrop.covered;
+        const voltageGuidance = assessment.voltageDrop.result
+          ? String(assessment.voltageDrop.result.targetDropPercent) +
+            "% target / " +
+            String(assessment.voltageDrop.result.maxDropV) +
+            "V max drop"
+          : assessment.voltageDrop.note;
+
         return [
           run.room,
           run.application,
@@ -198,12 +222,12 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
           run.lens,
           run.feed,
           run.dimming,
-          candidate?.family.name ?? run.powerSupplyFamilyId,
-          candidate?.mismatches.length
-            ? "Incompatible PSU family"
-            : candidate?.wattage
-              ? `${candidate.wattage}W capacity candidate`
-              : "Engineering / quote review",
+          assessment.power.familyName ?? legacyCandidate?.family.name ?? run.powerSupplyFamilyId,
+          powerCandidate,
+          hasLibraryCoverage
+            ? "Proposed source-backed library — human verification required"
+            : "Legacy catalog / planning only",
+          voltageGuidance,
           run.notes,
         ];
       }),
