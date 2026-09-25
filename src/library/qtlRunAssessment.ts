@@ -150,6 +150,12 @@ function assessOrdering(input: QtlRunAssessmentInput) {
 
   if (input.productId === "qcap-kurv") {
     const range = familyLengthRange(familyById("qtl-qcap-kurv"));
+    const rangeNote =
+      requestedIn > 0 && range.maxLengthIn !== null && requestedIn > range.maxLengthIn
+        ? " The requested fixture length is above the published " + range.maxLengthIn + " in maximum."
+        : requestedIn > 0 && range.minLengthIn !== null && requestedIn < range.minLengthIn
+          ? " The requested fixture length is below the published " + range.minLengthIn + " in minimum."
+          : "";
     return {
       assessment: {
         covered: true,
@@ -157,7 +163,9 @@ function assessOrdering(input: QtlRunAssessmentInput) {
         maxLengthIn: range.maxLengthIn,
         result: null,
         note:
-          "QTL publishes different KURV ordering increments by light engine. This project run does not store an explicit light engine yet, so AV-SW can show the sourced length range but will not invent an orderable split.",
+          "QTL publishes different KURV ordering increments by light engine." +
+          rangeNote +
+          " This project run does not store an explicit light engine yet, so AV-SW can show the sourced length range but will not invent an orderable split.",
       } satisfies QtlOrderingAssessment,
       refs: range.refs,
     };
