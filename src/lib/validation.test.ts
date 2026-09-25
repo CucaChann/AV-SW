@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RETROFIT_SURVEY } from "./design";
-import { DEFAULT_TOOLS_STATE, issueSummary, validateProject } from "./projectTools";
+import { DEFAULT_TOOLS_STATE, generateToolBom, issueSummary, normalizeTools, validateProject } from "./projectTools";
 
 const validate = (tools = DEFAULT_TOOLS_STATE) =>
   validateProject({ bom: [], mode: "new-build", survey: DEFAULT_RETROFIT_SURVEY, tools });
@@ -35,5 +35,20 @@ describe("issueSummary", () => {
       { id: "x", severity: "Warning" as const, system: "Test", message: "Second warning" },
     ];
     expect(issueSummary(issues).headline).toBe("2 warnings");
+  });
+});
+
+describe("normalizeTools", () => {
+  it("fills fields missing from older saved items so the BOM can be built", () => {
+    const tools = normalizeTools({
+      qtlRuns: [{ id: "legacy-1", room: "Kitchen", lengthFt: 8, wattsPerFt: 4 }, null, "junk"],
+      audioZones: [{ room: "Den" }],
+      cableRuns: "not a list",
+    });
+    expect(tools.qtlRuns).toHaveLength(1);
+    expect(tools.qtlRuns[0]).toMatchObject({ id: "legacy-1", room: "Kitchen", selectedFamily: expect.any(String) });
+    expect(tools.audioZones[0]).toMatchObject({ room: "Den", speakerType: "In-Ceiling" });
+    expect(tools.cableRuns).toEqual([]);
+    expect(() => generateToolBom(tools, "new-build")).not.toThrow();
   });
 });

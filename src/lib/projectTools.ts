@@ -178,6 +178,36 @@ export const DEFAULT_TOOLS_STATE: ProjectToolsState = {
   },
 };
 
+/** Keeps object entries and fills each one's missing fields from `defaults()`. */
+function itemsWithDefaults<T extends object>(value: unknown, defaults: () => T): T[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<T> => Boolean(item) && typeof item === "object")
+    .map((item) => ({ ...defaults(), ...item }));
+}
+
+/** Fills fields missing from saved or older data with defaults. */
+export function normalizeTools(value: unknown): ProjectToolsState {
+  const parsed =
+    value && typeof value === "object" ? (value as Partial<ProjectToolsState>) : {};
+  return {
+    network: { ...DEFAULT_TOOLS_STATE.network, ...(parsed.network ?? {}) },
+    budget: {
+      ...DEFAULT_TOOLS_STATE.budget,
+      ...(parsed.budget ?? {}),
+      allocations: {
+        ...DEFAULT_TOOLS_STATE.budget.allocations,
+        ...(parsed.budget?.allocations ?? {}),
+      },
+    },
+    // Items saved by older versions may lack fields added since.
+    qtlRuns: itemsWithDefaults(parsed.qtlRuns, newQtlRun),
+    audioZones: itemsWithDefaults(parsed.audioZones, newAudioZone),
+    videoChains: itemsWithDefaults(parsed.videoChains, newVideoChain),
+    cableRuns: itemsWithDefaults(parsed.cableRuns, newCableRun),
+  };
+}
+
 export const MANUFACTURERS: ManufacturerSummary[] = [
   { name: "Lutron", categories: ["Lighting Control", "Shades", "Ketra"], focus: "Controls, keypads, load control, processors, shades, lighting." },
   { name: "DMF Lighting", categories: ["Architectural Lighting"], focus: "Downlights, adjustable, wall-wash, retrofit and new construction." },

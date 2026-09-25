@@ -600,6 +600,13 @@ export const DEFAULT_RETROFIT_SURVEY: RetrofitSurvey = {
   notes: "",
 };
 
+/** Fills fields missing from saved or older data with defaults. */
+export function normalizeSurvey(value: unknown): RetrofitSurvey {
+  const stored =
+    value && typeof value === "object" ? (value as Partial<RetrofitSurvey>) : {};
+  return { ...DEFAULT_RETROFIT_SURVEY, ...stored };
+}
+
 export function applyRetrofitSurvey(
   sourceBom: BomItem[],
   survey: RetrofitSurvey,
