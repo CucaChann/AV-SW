@@ -54,6 +54,14 @@ export type QtlPreset = {
   derivedFromQuoteExample?: boolean;
 };
 
+/**
+ * Review state of this catalog. It predates the source-backed product library
+ * (data/library/) and has not been verified there yet, so sizing results built
+ * on it must say so. Remove once the QTL data moves into the library.
+ */
+export const QTL_CATALOG_REVIEW_NOTE =
+  "QTL capacities and options come from the seeded QTL catalog, which has not yet been source-verified in the product library.";
+
 export const QTL_FAMILY_OVERVIEW = [
   {
     family: "MICRO 5",

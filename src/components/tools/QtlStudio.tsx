@@ -12,6 +12,7 @@ import {
   QTL_FAMILY_OVERVIEW,
   QTL_FIXTURES,
   QTL_POWER_SUPPLIES,
+  QTL_CATALOG_REVIEW_NOTE,
   QTL_PRESETS,
   qtlFixtureById,
   qtlPowerSupplyById,
@@ -163,7 +164,11 @@ export default function QtlStudio({ state, onChange }: Props) {
           run.feed,
           run.dimming,
           candidate?.family.name ?? run.powerSupplyFamilyId,
-          candidate?.wattage ? `${candidate.wattage}W capacity candidate` : "Engineering / quote review",
+          candidate?.mismatches.length
+            ? "Incompatible PSU family"
+            : candidate?.wattage
+              ? `${candidate.wattage}W capacity candidate`
+              : "Engineering / quote review",
           run.notes,
         ];
       }),
@@ -479,6 +484,7 @@ export default function QtlStudio({ state, onChange }: Props) {
               <div>
                 <h3>How QTL power fits the design</h3>
                 <p className="muted">Select environment + output + control first, then size capacity and exact model.</p>
+                <p className="muted">{QTL_CATALOG_REVIEW_NOTE}</p>
               </div>
             </div>
             <div className="qtl-power-flow">

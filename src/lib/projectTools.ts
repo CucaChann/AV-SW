@@ -1,6 +1,7 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
 import {
   clampReservePct,
+  QTL_CATALOG_REVIEW_NOTE,
   qtlCandidatePowerSupply,
   qtlPowerSupplyById,
 } from "./qtlCatalog";
@@ -239,13 +240,75 @@ export function qtlRunPower(run: QtlRun) {
   return Math.max(0, run.lengthFt * run.wattsPerFt * Math.max(1, run.fixtureQty ?? 1));
 }
 
-/** Planning PSU candidate for a run, honoring its design reserve. */
+const CONTROL_PROTOCOLS: Array<[string, RegExp]> = [
+  ["0-10V", /0\s*-\s*10\s*v/i],
+  ["Phase", /phase|\belv\b|\bmlv\b|triac/i],
+  ["DMX", /\bdmx\b/i],
+  ["DALI", /\bdali\b/i],
+  ["Non-dimming", /non-?dimming/i],
+];
+
+function controlProtocols(text: string) {
+  return CONTROL_PROTOCOLS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
+}
+
+/**
+ * Reasons the run's selected PSU family cannot power it, from the catalog's
+ * output voltages, listed environments and control protocols. Linear runs are
+ * low-voltage DC, so the family must offer `${run.voltage}VDC`.
+ */
+export function qtlPsuMismatches(run: QtlRun): string[] {
+  const family = qtlPowerSupplyById(run.powerSupplyFamilyId);
+  if (!family) return [];
+  const mismatches: string[] = [];
+
+  const needed = `${run.voltage}VDC`;
+  if (!family.outputVoltages.includes(needed)) {
+    mismatches.push(
+      family.acDc === "AC"
+        ? `${family.name} is an AC transformer family (${family.outputVoltages.join(" / ")}); this run needs a ${needed} supply.`
+        : `${family.name} outputs ${family.outputVoltages.join(" / ")}; this run needs ${needed}.`,
+    );
+  }
+
+  const environments = family.environments.join(" ").toLowerCase();
+  if (run.environment === "Wet" && !/wet|outdoor|pool/.test(environments)) {
+    mismatches.push(`${family.name} lists no wet-location variant; this run is in a wet location.`);
+  }
+  if (run.environment === "Dry" && !/indoor/.test(environments)) {
+    mismatches.push(
+      `${family.name} is listed for ${family.environments.join(", ")} only; this run is an indoor dry location.`,
+    );
+  }
+
+  const wanted = controlProtocols(run.dimming);
+  const offered = controlProtocols(family.controls.join(" "));
+  if (wanted.length > 0 && !wanted.some((protocol) => offered.includes(protocol))) {
+    mismatches.push(
+      `${family.name} lists ${family.controls.join(", ")} control; this run calls for ${wanted.join(" or ")}.`,
+    );
+  }
+
+  return mismatches;
+}
+
+/**
+ * Planning PSU candidate for a run, honoring its design reserve. A family that
+ * doesn't fit the run gets no capacity candidate; `mismatches` says why.
+ */
 export function qtlRunPsuCandidate(run: QtlRun) {
-  return qtlCandidatePowerSupply(
+  const candidate = qtlCandidatePowerSupply(
     run.powerSupplyFamilyId,
     qtlRunPower(run),
     run.reservePct,
   );
+  if (!candidate) return null;
+  const mismatches = qtlPsuMismatches(run);
+  return {
+    ...candidate,
+    wattage: mismatches.length > 0 ? null : candidate.wattage,
+    mismatches,
+  };
 }
 
 export function qtlRunWarnings(run: QtlRun) {
@@ -259,6 +322,7 @@ export function qtlRunWarnings(run: QtlRun) {
   if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
   if (!run.productId && run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
   if ((run.fixtureQty ?? 1) <= 0) warnings.push("Fixture quantity must be greater than zero.");
+  for (const mismatch of qtlPsuMismatches(run)) warnings.push(`PSU family mismatch: ${mismatch}`);
   if (clampReservePct(run.reservePct) === 0) {
     warnings.push("No design reserve: the PSU candidate is sized at 100% of its rating. Set a reserve per QTL loading guidance.");
   }
@@ -517,8 +581,10 @@ export function generateToolBom(
       quantity: "Engineering / quote selection",
       status,
       confidence: "Review",
-      basis: candidate?.wattage
-        ? `Smallest capacity in the selected ${psu?.name ?? "PSU"} family that carries ${qtlRunPower(run).toFixed(1)} W with a ${clampReservePct(run.reservePct)}% design reserve is ${candidate.wattage}W. This is a planning candidate only; exact QTL model, channel grouping, protocol, environment and Class 2 architecture must be verified in the current QTL configuration/quote.`
+      basis: candidate?.mismatches.length
+        ? `Selected ${psu?.name ?? "PSU"} family does not fit this run: ${candidate.mismatches.join(" ")} Choose a compatible family before sizing.`
+        : candidate?.wattage
+        ? `Smallest capacity in the selected ${psu?.name ?? "PSU"} family that carries ${qtlRunPower(run).toFixed(1)} W with a ${clampReservePct(run.reservePct)}% design reserve is ${candidate.wattage}W. This is a planning candidate only; exact QTL model, channel grouping, protocol, environment and Class 2 architecture must be verified in the current QTL configuration/quote. ${QTL_CATALOG_REVIEW_NOTE}`
         : `Connected load is ${qtlRunPower(run).toFixed(1)} W. Selected family does not have a simple single-capacity match in the seeded data; engineering/quote review required.`,
     });
   }

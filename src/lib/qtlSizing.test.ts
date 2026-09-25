@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { qtlCandidatePowerSupply } from "./qtlCatalog";
+import { QTL_CATALOG_REVIEW_NOTE, QTL_PRESETS, qtlCandidatePowerSupply } from "./qtlCatalog";
 import {
   audioZoneWarnings,
+  DEFAULT_TOOLS_STATE,
+  generateToolBom,
   newAudioZone,
   newQtlRun,
+  qtlPsuMismatches,
   qtlRunPsuCandidate,
   qtlRunWarnings,
 } from "./projectTools";
@@ -74,5 +77,76 @@ describe("audioZoneWarnings", () => {
   it("does not flag powered speakers", () => {
     const zone = { ...newAudioZone(), room: "Den", amplification: "Powered Speaker" as const };
     expect(audioZoneWarnings(zone).some((w) => w.startsWith("Amplification is TBD"))).toBe(false);
+  });
+});
+
+describe("qtlRunPsuCandidate family compatibility", () => {
+  const indoorRun = {
+    ...newQtlRun(),
+    room: "Kitchen",
+    lengthFt: 10,
+    wattsPerFt: 4,
+    reservePct: 20,
+    environment: "Dry" as const,
+    dimming: "0-10V",
+  };
+
+  it("sizes a compatible family", () => {
+    const candidate = qtlRunPsuCandidate({ ...indoorRun, powerSupplyFamilyId: "qz" });
+    expect(candidate?.mismatches).toEqual([]);
+    expect(candidate?.wattage).toBe(60);
+  });
+
+  it("rejects an AC direct-burial family for a dry 24 V DC run", () => {
+    const run = { ...indoorRun, powerSupplyFamilyId: "qhex" };
+    const candidate = qtlRunPsuCandidate(run);
+    expect(candidate?.wattage).toBeNull();
+    expect(candidate?.mismatches.join(" ")).toMatch(/AC transformer family/);
+    expect(candidate?.mismatches.join(" ")).toMatch(/indoor dry location/);
+    expect(candidate?.mismatches.join(" ")).toMatch(/calls for 0-10V/);
+    expect(qtlRunWarnings(run).some((w) => w.startsWith("PSU family mismatch"))).toBe(true);
+  });
+
+  it("rejects a family without the run's DC voltage", () => {
+    const candidate = qtlRunPsuCandidate({ ...indoorRun, voltage: 48, powerSupplyFamilyId: "qz" });
+    expect(candidate?.wattage).toBeNull();
+    expect(candidate?.mismatches).toEqual(["QZ outputs 24VDC; this run needs 48VDC."]);
+  });
+
+  it("rejects an outdoor-only DC family for an indoor dry run", () => {
+    const candidate = qtlRunPsuCandidate({ ...indoorRun, powerSupplyFamilyId: "qset-dc" });
+    expect(candidate?.mismatches).toHaveLength(1);
+    expect(candidate?.mismatches[0]).toMatch(/indoor dry location/);
+  });
+
+  it("rejects a family without the run's control protocol", () => {
+    const candidate = qtlRunPsuCandidate({ ...indoorRun, dimming: "Phase (ELV)", powerSupplyFamilyId: "qtm" });
+    expect(candidate?.mismatches).toHaveLength(1);
+    expect(candidate?.mismatches[0]).toMatch(/calls for Phase/);
+  });
+
+  it("pairs every built-in preset with a compatible family", () => {
+    for (const preset of QTL_PRESETS) {
+      const run = {
+        ...newQtlRun(),
+        environment: preset.environment,
+        dimming: preset.dimming,
+        powerSupplyFamilyId: preset.powerSupplyFamilyId,
+      };
+      expect(qtlPsuMismatches(run), preset.id).toEqual([]);
+    }
+  });
+});
+
+describe("QTL BOM basis", () => {
+  it("says the capacity data is not yet verified in the library", () => {
+    const tools = {
+      ...DEFAULT_TOOLS_STATE,
+      qtlRuns: [{ ...newQtlRun(), room: "Kitchen", lengthFt: 10, wattsPerFt: 4, reservePct: 20 }],
+    };
+    const driver = generateToolBom(tools, "new-build").find((item) => item.id.endsWith("-driver"));
+    expect(driver?.basis).toContain("60W");
+    expect(driver?.basis).toContain(QTL_CATALOG_REVIEW_NOTE);
+    expect(driver?.confidence).toBe("Review");
   });
 });
