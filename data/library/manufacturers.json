@@ -4,35 +4,25 @@
     {
       "id": "lutron",
       "name": "Lutron Electronics",
-      "brands": [
-        "Lutron",
-        "Ketra"
-      ],
+      "brands": ["Lutron", "Ketra"],
       "website": "https://www.lutron.com"
     },
     {
       "id": "dmf",
       "name": "DMF Lighting",
-      "brands": [
-        "DMF"
-      ],
+      "brands": ["DMF"],
       "website": "https://www.dmflighting.com"
     },
     {
       "id": "savant",
       "name": "Savant Systems",
-      "brands": [
-        "Savant"
-      ],
+      "brands": ["Savant"],
       "website": "https://www.savant.com"
     },
     {
       "id": "qtl",
       "name": "Q-Tran Inc. DBA QTL",
-      "brands": [
-        "QTL",
-        "Q-Tran"
-      ],
+      "brands": ["QTL", "Q-Tran"],
       "website": "https://www.qtl.lighting"
     }
   ]
