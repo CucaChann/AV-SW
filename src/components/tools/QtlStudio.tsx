@@ -297,9 +297,31 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
               const run = normalizedRun(raw);
               const product = qtlFixtureById(run.productId);
               const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
-              const candidate = qtlRunPsuCandidate(run);
-              const warnings = qtlRunWarnings(run);
-              const split = qtlSplitForMax(run);
+              const legacyCandidate = qtlRunPsuCandidate(run);
+              const assessment = assessQtlRun(run);
+              const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+              const powerName = assessment.power.familyName ?? psu?.name ?? "PSU TBD";
+              const capacityLabel = assessment.power.covered
+                ? sourcedCapacity
+                  ? String(sourcedCapacity) + "W proposed-library candidate"
+                  : "Source-backed review"
+                : legacyCandidate?.wattage
+                  ? String(legacyCandidate.wattage) + "W legacy planning candidate"
+                  : "Engineering review";
+              const warnings = qtlRunWarnings(run).filter((warning) => {
+                if (warning.startsWith("No design reserve:")) return false;
+                if (assessment.ordering.covered && warning.startsWith("Each fixture is ")) return false;
+                if (assessment.power.covered && warning.startsWith("PSU family mismatch:")) return false;
+                return true;
+              });
+              if (run.reservePct <= 0) {
+                warnings.push(
+                  "No optional designer reserve is applied. Reserve is project policy, not a QTL manufacturer requirement.",
+                );
+              }
+              // Source-backed products suppress the old equal-piece split because
+              // an exact orderable split can depend on manufacturer increments.
+              const split = assessment.ordering.covered ? null : qtlSplitForMax(run);
               const link = planLink(run);
               const linkedItem = link?.item ?? null;
               const planFt = link?.planFt ?? null;
