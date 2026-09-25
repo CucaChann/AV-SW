@@ -2202,3 +2202,121 @@ button:focus-visible,
 .issue-list li.warning {
   border-left-color: #d6aa41;
 }
+
+/* Project file: File menu, title, loading */
+.app-loading {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.file-menu {
+  position: relative;
+}
+
+.file-menu > button {
+  padding: 6px 10px;
+}
+
+.file-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 240px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.file-menu-panel button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  border-color: transparent;
+  background: transparent;
+}
+
+.file-menu-panel button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.file-menu-panel button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-menu-panel kbd {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.file-menu-panel hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.file-menu-label {
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.project-title {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dirty-dot {
+  margin-left: 6px;
+  color: var(--warning-text);
+}
+
+.project-path {
+  overflow-wrap: anywhere;
+}
+
+.app-crash {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 12px;
+  max-width: 560px;
+  height: 100vh;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.app-crash-detail {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--warning-text);
+}
+
+.app-crash-actions {
+  display: flex;
+  gap: 8px;
+}

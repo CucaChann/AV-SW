@@ -1,6 +1,5 @@
 import { isTauri } from "@tauri-apps/api/core";
 import {
-  ChangeEvent,
   MouseEvent,
   useCallback,
   useEffect,
@@ -19,6 +18,7 @@ import {
   type DraftRecommendation,
   type ParsedDxfDrawing,
 } from "../lib/dxf";
+import type { ProjectDrawing } from "../lib/projectFile";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
@@ -31,26 +31,24 @@ const MAX_ZOOM = 8;
 type DrawingKind = "pdf" | "dxf" | null;
 
 type Props = {
+  /** The project's active drawing; the viewer shows whatever it is given. */
+  drawing: ProjectDrawing | null;
+  /** Asks the app to pick a drawing and add it to the project. */
+  onOpenDrawing: () => void;
   onAnalysisChange?: (analysis: DrawingAnalysis | null) => void;
   onDraftChange?: (recommendations: DraftRecommendation[]) => void;
 };
 
-function fileNameFromPath(path: string) {
-  return path.split(/[\\/]/).pop() || path;
-}
-
-function extensionOf(name: string) {
-  const index = name.lastIndexOf(".");
-  return index >= 0 ? name.slice(index + 1).toLowerCase() : "";
-}
-
 export default function DrawingViewer({
+  drawing,
+  onOpenDrawing,
   onAnalysisChange,
   onDraftChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const browserInputRef = useRef<HTMLInputElement>(null);
+  const onAnalysisChangeRef = useRef(onAnalysisChange);
+  onAnalysisChangeRef.current = onAnalysisChange;
 
   const [drawingKind, setDrawingKind] = useState<DrawingKind>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
@@ -180,158 +178,65 @@ export default function DrawingViewer({
     }
   }, [drawingKind, dxfDrawing, fitToView]);
 
-  const resetDrawingState = useCallback(() => {
+  // Load whenever the project's active drawing changes (new, opened or replaced).
+  const drawingId = drawing?.id ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
     setDocument(null);
     setDxfDrawing(null);
     setPageNumber(1);
     setZoom(1);
     setPan({ x: 24, y: 24 });
-    onAnalysisChange?.(null);
-    onDraftChange?.([]);
-  }, [onAnalysisChange, onDraftChange]);
+    onAnalysisChangeRef.current?.(null);
 
-  const loadPdf = useCallback(
-    async (bytes: Uint8Array, name: string) => {
-      setError(null);
-      setOpening(true);
-      resetDrawingState();
-
-      try {
-        const loadingTask = pdfjs.getDocument({ data: bytes });
-        const nextDocument = await loadingTask.promise;
-
-        setDocument(nextDocument);
-        setDrawingKind("pdf");
-        setFileName(name);
-      } catch (openError) {
-        setDrawingKind(null);
-        setError(
-          openError instanceof Error
-            ? openError.message
-            : "Unable to open the selected PDF.",
-        );
-      } finally {
-        setOpening(false);
-      }
-    },
-    [resetDrawingState],
-  );
-
-  const loadDxf = useCallback(
-    async (text: string, name: string) => {
-      setError(null);
-      setOpening(true);
-      resetDrawingState();
-
-      try {
-        const parsed = parseDxf(text);
-        setDxfDrawing(parsed);
-        setDrawingKind("dxf");
-        setFileName(name);
-        onAnalysisChange?.(parsed.analysis);
-      } catch (openError) {
-        setDrawingKind(null);
-        setError(
-          openError instanceof Error
-            ? openError.message
-            : "Unable to parse the selected DXF.",
-        );
-      } finally {
-        setOpening(false);
-      }
-    },
-    [onAnalysisChange, resetDrawingState],
-  );
-
-  const loadByExtension = useCallback(
-    async (name: string, bytes: Uint8Array) => {
-      const extension = extensionOf(name);
-
-      if (extension === "pdf") {
-        await loadPdf(bytes, name);
-        return;
-      }
-
-      if (extension === "dxf") {
-        const text = new TextDecoder("utf-8").decode(bytes);
-        await loadDxf(text, name);
-        return;
-      }
-
-      setError("AV-SW currently supports PDF and DXF drawings. DWG comes later.");
-    },
-    [loadDxf, loadPdf],
-  );
-
-  const openDrawing = useCallback(async () => {
-    if (!isTauri()) {
-      browserInputRef.current?.click();
+    if (!drawing) {
+      setDrawingKind(null);
+      setFileName("");
       return;
     }
 
-    setError(null);
+    setFileName(drawing.name);
     setOpening(true);
 
-    try {
-      const [{ open }, { readFile }] = await Promise.all([
-        import("@tauri-apps/plugin-dialog"),
-        import("@tauri-apps/plugin-fs"),
-      ]);
-
-      const selected = await open({
-        multiple: false,
-        directory: false,
-        filters: [
-          {
-            name: "AV-SW Drawing",
-            extensions: ["pdf", "dxf"],
-          },
-        ],
-      });
-
-      if (!selected || Array.isArray(selected)) {
-        setOpening(false);
-        return;
+    async function load(current: ProjectDrawing) {
+      try {
+        if (current.kind === "pdf") {
+          // pdf.js takes ownership of the bytes it is given; keep the project's copy intact.
+          const nextDocument = await pdfjs.getDocument({ data: current.bytes.slice() }).promise;
+          if (cancelled) {
+            void nextDocument.loadingTask.destroy();
+            return;
+          }
+          setDocument(nextDocument);
+          setDrawingKind("pdf");
+        } else {
+          const parsed = parseDxf(new TextDecoder("utf-8").decode(current.bytes));
+          if (cancelled) return;
+          setDxfDrawing(parsed);
+          setDrawingKind("dxf");
+          onAnalysisChangeRef.current?.(parsed.analysis);
+        }
+      } catch (openError) {
+        if (cancelled) return;
+        setDrawingKind(null);
+        setError(
+          openError instanceof Error
+            ? openError.message
+            : `Unable to open ${current.name}.`,
+        );
+      } finally {
+        if (!cancelled) setOpening(false);
       }
-
-      const bytes = await readFile(selected);
-      await loadByExtension(fileNameFromPath(selected), bytes);
-    } catch (openError) {
-      setOpening(false);
-      setError(
-        openError instanceof Error
-          ? openError.message
-          : "Unable to open the selected drawing.",
-      );
     }
-  }, [loadByExtension]);
 
-  useEffect(() => {
-    const listener = () => {
-      void openDrawing();
-    };
-
-    window.addEventListener("avsw:open-floorplan", listener);
-
+    void load(drawing);
     return () => {
-      window.removeEventListener("avsw:open-floorplan", listener);
+      cancelled = true;
     };
-  }, [openDrawing]);
-
-  async function handleBrowserFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const extension = extensionOf(file.name);
-    if (extension !== "pdf" && extension !== "dxf") {
-      setError("Please choose a PDF or DXF drawing.");
-      event.target.value = "";
-      return;
-    }
-
-    await loadByExtension(file.name, new Uint8Array(await file.arrayBuffer()));
-    event.target.value = "";
-  }
+    // Keyed by id: a drawing's bytes never change once it is in the project.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawingId]);
 
   function changeZoom(delta: number) {
     setZoom((current) =>
@@ -369,12 +274,13 @@ export default function DrawingViewer({
 
   const zoomPercent = Math.round(zoom * 100);
   const hasDrawing = Boolean(drawingKind);
+  const hasDrawingSelected = Boolean(drawing);
 
   return (
     <section className="canvas-wrap">
       <div className="canvas-toolbar">
-        <button onClick={() => void openDrawing()} disabled={opening}>
-          {opening ? "Opening…" : "Open Drawing"}
+        <button onClick={onOpenDrawing} disabled={opening}>
+          {opening ? "Opening…" : hasDrawingSelected ? "Replace Drawing" : "Open Drawing"}
         </button>
 
         <span className="toolbar-divider" />
@@ -438,14 +344,6 @@ export default function DrawingViewer({
         )}
       </div>
 
-      <input
-        ref={browserInputRef}
-        className="visually-hidden"
-        type="file"
-        accept=".pdf,.dxf,application/pdf"
-        onChange={handleBrowserFile}
-      />
-
       <div
         ref={containerRef}
         className={`canvas ${hasDrawing ? "has-document" : ""} ${dragging ? "is-dragging" : ""}`}
@@ -463,7 +361,7 @@ export default function DrawingViewer({
                 ? "Open a local PDF or DXF drawing to start designing."
                 : "Browser development mode — choose a PDF or DXF drawing."}
             </p>
-            <button className="primary" onClick={() => void openDrawing()}>
+            <button className="primary" onClick={onOpenDrawing}>
               Open Drawing
             </button>
             <p className="format-note">Supported now: PDF, DXF · Planned: DWG</p>
