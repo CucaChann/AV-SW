@@ -5,6 +5,7 @@ export type LinearOrderingResult = {
   ruleId: string;
   variant: string;
   requestedTotalIn: number;
+  orderingMode: "exact" | "optimal" | null;
   minLengthIn: number | null;
   maxLengthIn: number | null;
   lengthIncrementIn: number | null;
@@ -102,6 +103,7 @@ export function evaluateLinearOrdering(input: {
   rule: LinearOrderingRule;
   requestedTotalIn: number;
   variant: string;
+  orderingMode?: "exact" | "optimal";
 }): LinearOrderingResult {
   const { rule, variant, requestedTotalIn } = input;
   if (!Number.isFinite(requestedTotalIn) || requestedTotalIn <= 0) {
@@ -117,6 +119,7 @@ export function evaluateLinearOrdering(input: {
       ruleId: rule.id,
       variant,
       requestedTotalIn,
+      orderingMode: null,
       minLengthIn: null,
       maxLengthIn: null,
       lengthIncrementIn: null,
@@ -127,6 +130,58 @@ export function evaluateLinearOrdering(input: {
       nearestUpperTotalIn: null,
       verified,
       explanation: `No published ordering rule for variant "${variant}" is in the library; AV-SW cannot check it.`,
+      sources,
+    };
+  }
+
+  const orderingMode =
+    input.orderingMode ??
+    (selected.lengthModes?.includes("exact") ? "exact" : selected.lengthModes?.[0] ?? null);
+
+  if (
+    input.orderingMode &&
+    selected.lengthModes &&
+    !selected.lengthModes.includes(input.orderingMode)
+  ) {
+    return {
+      ruleId: rule.id,
+      variant,
+      requestedTotalIn,
+      orderingMode: input.orderingMode,
+      minLengthIn: selected.minLengthIn,
+      maxLengthIn: selected.maxLengthIn,
+      lengthIncrementIn: selected.lengthIncrementIn ?? null,
+      orderable: null,
+      segmentsIn: null,
+      minimumPieces: null,
+      nearestLowerTotalIn: null,
+      nearestUpperTotalIn: null,
+      verified,
+      explanation: `Ordering mode "${input.orderingMode}" is not published for variant "${variant}" in this rule; AV-SW cannot check it.`,
+      sources,
+    };
+  }
+
+  if (orderingMode === "optimal" && selected.optimalRequiresChart) {
+    const explanation =
+      "QTL publishes Optimal as a distinct ordering mode whose finished length is rounded using its Exact/Optimal fixture-length charts. Those chart values are not encoded in the library, so AV-SW will not calculate an Optimal length yet.";
+    return {
+      ruleId: rule.id,
+      variant,
+      requestedTotalIn,
+      orderingMode,
+      minLengthIn: selected.minLengthIn,
+      maxLengthIn: selected.maxLengthIn,
+      lengthIncrementIn: selected.lengthIncrementIn ?? null,
+      orderable: null,
+      segmentsIn: null,
+      minimumPieces: Math.max(1, Math.ceil(requestedTotalIn / selected.maxLengthIn)),
+      nearestLowerTotalIn: null,
+      nearestUpperTotalIn: null,
+      verified,
+      explanation: verified
+        ? explanation
+        : `${explanation} Uses proposed library data; confirm the cited source before issuing.`,
       sources,
     };
   }
@@ -145,6 +200,7 @@ export function evaluateLinearOrdering(input: {
       ruleId: rule.id,
       variant,
       requestedTotalIn,
+      orderingMode,
       minLengthIn: selected.minLengthIn,
       maxLengthIn: selected.maxLengthIn,
       lengthIncrementIn: null,
@@ -172,6 +228,7 @@ export function evaluateLinearOrdering(input: {
     ruleId: rule.id,
     variant,
     requestedTotalIn,
+    orderingMode,
     minLengthIn: selected.minLengthIn,
     maxLengthIn: selected.maxLengthIn,
     lengthIncrementIn: selected.lengthIncrementIn,
