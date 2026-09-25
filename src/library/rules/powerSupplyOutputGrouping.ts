@@ -27,12 +27,19 @@ type PackingResult =
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
+// JS decimal sums can land a few ulps above an exact published boundary.
+// A 1e-9 W tolerance absorbs only floating-point noise; real overloads such
+// as 96.0004 W remain overloads and are never rounded into compliance.
+const CAPACITY_EPSILON_W = 1e-9;
+const exceedsCapacity = (value: number, limit: number) =>
+  value - limit > CAPACITY_EPSILON_W;
+
 function maxItemsPerOutput(loads: number[], maxPerOutputW: number): number {
   const ascending = [...loads].sort((a, b) => a - b);
   let total = 0;
   let count = 0;
   for (const load of ascending) {
-    if (total + load > maxPerOutputW + Number.EPSILON) break;
+    if (exceedsCapacity(total + load, maxPerOutputW)) break;
     total += load;
     count += 1;
   }
@@ -53,7 +60,7 @@ function packExact(
     .map((load, index) => ({ load, index }))
     .sort((a, b) => b.load - a.load || a.index - b.index);
 
-  if (indexed.some(({ load }) => load > maxPerOutputW + Number.EPSILON)) {
+  if (indexed.some(({ load }) => exceedsCapacity(load, maxPerOutputW))) {
     return { status: "impossible", channels: null };
   }
 
@@ -87,7 +94,7 @@ function packExact(
       if (seenTotals.has(symmetryKey)) continue;
       seenTotals.add(symmetryKey);
 
-      if (current + entry.load > maxPerOutputW + Number.EPSILON) continue;
+      if (current + entry.exceedsCapacity(load, maxPerOutputW)) continue;
 
       placements += 1;
       channels[channel].push(entry);
@@ -292,7 +299,7 @@ export function evaluatePowerSupplyOutputGrouping(input: {
   for (const configuration of configurations) {
     const usableTotalCapacityW = configuration.totalCapacityW * usableFactor;
     const usablePerOutputW = configuration.maxPerOutputW * usableFactor;
-    if (totalLoadW > usableTotalCapacityW + Number.EPSILON) continue;
+    if (exceedsCapacity(totalLoadW, usableTotalCapacityW)) continue;
 
     const packing = packExact(
       loadsW,
@@ -343,7 +350,7 @@ export function evaluatePowerSupplyOutputGrouping(input: {
   const largestOutput = Math.max(
     ...configurations.map((configuration) => configuration.maxPerOutputW * usableFactor),
   );
-  const overOutput = loadsW.find((load) => load > largestOutput + Number.EPSILON);
+  const overOutput = loadsW.find((load) => exceedsCapacity(load, largestOutput));
   const reason = budgetExhausted
     ? "AV-SW reached its safe packing-search budget and could not prove a valid output grouping; split the run group or review it manually."
     : overOutput
