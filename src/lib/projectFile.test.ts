@@ -6,12 +6,13 @@ import {
   newDrawing,
   newProject,
   parseProject,
+  parseProjectWithRepairs,
   PROJECT_FORMAT_VERSION,
   ProjectFileError,
   projectNameFromPath,
   serializeProject,
 } from "./projectFile";
-import { newQtlRun } from "./projectTools";
+import { generateToolBom, newQtlRun } from "./projectTools";
 
 function sampleProject() {
   const project = newProject("Smith Residence", new Date("2026-09-25T12:00:00Z"));
@@ -106,5 +107,50 @@ describe("helpers", () => {
 
   it("only accepts PDF and DXF drawings", () => {
     expect(() => newDrawing("plan.dwg", new Uint8Array())).toThrow(/not a PDF or DXF/);
+  });
+});
+
+describe("damaged values inside a project", () => {
+  function withProjectJson(edit: (json: Record<string, any>) => void) {
+    const files = unzipSync(serializeProject(sampleProject()));
+    const json = JSON.parse(new TextDecoder().decode(files["project.json"]));
+    edit(json);
+    files["project.json"] = strToU8(JSON.stringify(json));
+    return zipSync(files);
+  }
+
+  it("resets wrong-typed fields to defaults and reports them, so the BOM still builds", () => {
+    const bytes = withProjectJson((json) => {
+      json.tools.qtlRuns[0].lengthFt = "bad";
+      json.tools.network.cameras = null;
+      json.survey.speakerCount = "six";
+      json.tools.budget.allocations.Audio = "lots";
+    });
+    const { project, repairs } = parseProjectWithRepairs(bytes);
+
+    expect(new Set(repairs)).toEqual(
+      new Set(["survey.speakerCount", "tools.network.cameras", "tools.budget.allocations.Audio", "tools.qtlRuns[0].lengthFt"]),
+    );
+    expect(project.tools.qtlRuns[0]).toMatchObject({ room: "Kitchen", lengthFt: 10 });
+    expect(project.survey.speakerCount).toBe(0);
+    expect(() => generateToolBom(project.tools, project.mode)).not.toThrow();
+  });
+
+  it("drops invalid draft recommendations and non-object list items", () => {
+    const bytes = withProjectJson((json) => {
+      json.draft = [
+        { id: "d1", system: "Lighting", title: "Ok", rationale: "Fine", confidence: "High" },
+        { id: "d2", system: "Plumbing", title: "Bad", rationale: "Unknown system", confidence: "High" },
+      ];
+      json.tools.audioZones = [42];
+    });
+    const { project, repairs } = parseProjectWithRepairs(bytes);
+    expect(project.draft.map((item) => item.id)).toEqual(["d1"]);
+    expect(project.tools.audioZones).toEqual([]);
+    expect(repairs).toEqual(expect.arrayContaining(["draft[1]", "tools.audioZones[0]"]));
+  });
+
+  it("reports nothing for a healthy file", () => {
+    expect(parseProjectWithRepairs(serializeProject(sampleProject())).repairs).toEqual([]);
   });
 });

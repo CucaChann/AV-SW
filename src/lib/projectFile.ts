@@ -3,6 +3,7 @@ import { z } from "zod";
 import { normalizeSurvey, type ProjectMode, type RetrofitSurvey } from "./design";
 import type { DraftRecommendation } from "./dxf";
 import { normalizeTools, type ProjectToolsState } from "./projectTools";
+import { isRecord } from "./sanitize";
 
 /**
  * AV-SW project file (.avsw): one file per project, like a CAD file.
@@ -40,6 +41,9 @@ export type ProjectDocument = {
   activeDrawingId: string | null;
 };
 
+/** A loaded project plus the paths of fields that were invalid and reset to defaults. */
+export type ProjectLoad = { project: ProjectDocument; repairs: string[] };
+
 export class ProjectFileError extends Error {
   constructor(message: string) {
     super(message);
@@ -68,9 +72,10 @@ const projectJsonSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   mode: z.enum(["new-build", "retrofit"]),
-  survey: z.unknown(),
-  tools: z.unknown(),
-  draft: z.array(z.unknown()).default([]),
+  // Checked field by field (with repairs) by the normalize functions below.
+  survey: z.unknown().optional(),
+  tools: z.unknown().optional(),
+  draft: z.unknown().optional(),
   drawings: z.array(drawingEntrySchema).default([]),
   activeDrawingId: z.string().nullable().default(null),
 });
@@ -116,21 +121,13 @@ export function projectNameFromPath(path: string) {
   return file.replace(new RegExp(`\\.${PROJECT_FILE_EXTENSION}$`, "i"), "") || "Untitled project";
 }
 
-export function serializeProject(
-  project: ProjectDocument,
-  options: { appVersion?: string; savedAt?: Date } = {},
-): Uint8Array {
-  const savedAt = (options.savedAt ?? new Date()).toISOString();
-  const entries: Zippable = {};
+function drawingPath(drawing: Pick<ProjectDrawing, "id" | "kind">) {
+  return `drawings/${drawing.id}.${drawing.kind}`;
+}
 
-  const drawings = project.drawings.map((drawing) => {
-    const path = `drawings/${drawing.id}.${drawing.kind}`;
-    // PDFs are already compressed; storing keeps saves fast for large sets.
-    entries[path] = [drawing.bytes, { level: 0 }];
-    return { id: drawing.id, name: drawing.name, kind: drawing.kind, addedAt: drawing.addedAt, path };
-  });
-
-  const projectJson = {
+/** Everything but the drawing bytes, as stored in project.json. */
+export function projectToJson(project: ProjectDocument) {
+  return {
     id: project.id,
     name: project.name,
     createdAt: project.createdAt,
@@ -139,19 +136,36 @@ export function serializeProject(
     survey: project.survey,
     tools: project.tools,
     draft: project.draft,
-    drawings,
+    drawings: project.drawings.map((drawing) => ({
+      id: drawing.id,
+      name: drawing.name,
+      kind: drawing.kind,
+      addedAt: drawing.addedAt,
+      path: drawingPath(drawing),
+    })),
     activeDrawingId: project.activeDrawingId,
   };
+}
+
+export function serializeProject(
+  project: ProjectDocument,
+  options: { appVersion?: string; savedAt?: Date } = {},
+): Uint8Array {
+  const entries: Zippable = {};
+  for (const drawing of project.drawings) {
+    // PDFs are already compressed; storing keeps saves fast for large sets.
+    entries[drawingPath(drawing)] = [drawing.bytes, { level: 0 }];
+  }
 
   const manifest = {
     format: PROJECT_FORMAT,
     formatVersion: PROJECT_FORMAT_VERSION,
     appVersion: options.appVersion,
-    savedAt,
+    savedAt: (options.savedAt ?? new Date()).toISOString(),
   };
 
   entries["manifest.json"] = strToU8(JSON.stringify(manifest, null, 2));
-  entries["project.json"] = strToU8(JSON.stringify(projectJson, null, 2));
+  entries["project.json"] = strToU8(JSON.stringify(projectToJson(project), null, 2));
   return zipSync(entries);
 }
 
@@ -165,7 +179,76 @@ function readJson(files: Record<string, Uint8Array>, name: string): unknown {
   }
 }
 
-export function parseProject(bytes: Uint8Array): ProjectDocument {
+const DRAFT_SYSTEMS = new Set([
+  "Lighting", "Lutron", "QTL", "Shades", "Network", "Audio", "Video", "Infrastructure",
+]);
+
+function normalizeDraft(value: unknown, repairs: string[]): DraftRecommendation[] {
+  if (!Array.isArray(value)) {
+    if (value !== undefined) repairs.push("draft");
+    return [];
+  }
+  return value.filter((item, index): item is DraftRecommendation => {
+    const valid =
+      isRecord(item) &&
+      typeof item.id === "string" &&
+      typeof item.title === "string" &&
+      typeof item.rationale === "string" &&
+      DRAFT_SYSTEMS.has(item.system as string) &&
+      ["High", "Medium", "Review"].includes(item.confidence as string) &&
+      (item.room === undefined || typeof item.room === "string");
+    if (!valid) repairs.push(`draft[${index}]`);
+    return valid;
+  });
+}
+
+/**
+ * Builds a project from project.json data. `drawingBytes` supplies each
+ * listed drawing (from the ZIP, or from the recovery store).
+ */
+export function projectFromJson(
+  value: unknown,
+  drawingBytes: (entry: { id: string; path: string }) => Uint8Array | undefined,
+): ProjectLoad {
+  const parsed = projectJsonSchema.safeParse(value);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ProjectFileError(
+      `The project data is damaged (${issue.path.join(".") || "project"}: ${issue.message}).`,
+    );
+  }
+  const data = parsed.data;
+
+  const drawings = data.drawings.map((entry) => {
+    const bytes = drawingBytes(entry);
+    if (!bytes) {
+      throw new ProjectFileError(`The drawing "${entry.name}" is missing from the project file.`);
+    }
+    return { id: entry.id, name: entry.name, kind: entry.kind, addedAt: entry.addedAt, bytes };
+  });
+
+  const activeDrawingId =
+    data.activeDrawingId && drawings.some((drawing) => drawing.id === data.activeDrawingId)
+      ? data.activeDrawingId
+      : (drawings[0]?.id ?? null);
+
+  const repairs: string[] = [];
+  const project: ProjectDocument = {
+    id: data.id,
+    name: data.name,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    mode: data.mode,
+    survey: normalizeSurvey(data.survey, repairs),
+    tools: normalizeTools(data.tools, repairs),
+    draft: normalizeDraft(data.draft, repairs),
+    drawings,
+    activeDrawingId,
+  };
+  return { project, repairs };
+}
+
+export function parseProjectWithRepairs(bytes: Uint8Array): ProjectLoad {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
@@ -181,38 +264,9 @@ export function parseProject(bytes: Uint8Array): ProjectDocument {
     );
   }
 
-  const parsed = projectJsonSchema.safeParse(readJson(files, "project.json"));
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    throw new ProjectFileError(
-      `The project data is damaged (${issue.path.join(".") || "project"}: ${issue.message}).`,
-    );
-  }
-  const data = parsed.data;
+  return projectFromJson(readJson(files, "project.json"), (entry) => files[entry.path]);
+}
 
-  const drawings = data.drawings.map((entry) => {
-    const drawingBytes = files[entry.path];
-    if (!drawingBytes) {
-      throw new ProjectFileError(`The drawing "${entry.name}" is missing from the project file.`);
-    }
-    return { id: entry.id, name: entry.name, kind: entry.kind, addedAt: entry.addedAt, bytes: drawingBytes };
-  });
-
-  const activeDrawingId =
-    data.activeDrawingId && drawings.some((drawing) => drawing.id === data.activeDrawingId)
-      ? data.activeDrawingId
-      : (drawings[0]?.id ?? null);
-
-  return {
-    id: data.id,
-    name: data.name,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-    mode: data.mode,
-    survey: normalizeSurvey(data.survey),
-    tools: normalizeTools(data.tools),
-    draft: data.draft as DraftRecommendation[],
-    drawings,
-    activeDrawingId,
-  };
+export function parseProject(bytes: Uint8Array): ProjectDocument {
+  return parseProjectWithRepairs(bytes).project;
 }

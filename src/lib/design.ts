@@ -2,6 +2,7 @@ import type {
   DrawingAnalysis,
   DraftRecommendation,
 } from "./dxf";
+import { withDefaults } from "./sanitize";
 
 export type SystemName = DraftRecommendation["system"];
 export type ProjectMode = "new-build" | "retrofit";
@@ -600,11 +601,9 @@ export const DEFAULT_RETROFIT_SURVEY: RetrofitSurvey = {
   notes: "",
 };
 
-/** Fills fields missing from saved or older data with defaults. */
-export function normalizeSurvey(value: unknown): RetrofitSurvey {
-  const stored =
-    value && typeof value === "object" ? (value as Partial<RetrofitSurvey>) : {};
-  return { ...DEFAULT_RETROFIT_SURVEY, ...stored };
+/** Saved survey with missing or wrong-typed fields reset to defaults (see sanitize.ts). */
+export function normalizeSurvey(value: unknown, repairs?: string[]): RetrofitSurvey {
+  return withDefaults(value, DEFAULT_RETROFIT_SURVEY, "survey", repairs);
 }
 
 export function applyRetrofitSurvey(

@@ -137,6 +137,15 @@ export async function showError(text: string) {
   await message(text, { title: "AV-SW", kind: "error" });
 }
 
+export async function showWarning(text: string) {
+  if (!isTauri()) {
+    window.alert(text);
+    return;
+  }
+  const { message } = await import("@tauri-apps/plugin-dialog");
+  await message(text, { title: "AV-SW", kind: "warning" });
+}
+
 export async function setWindowTitle(title: string) {
   document.title = title;
   if (!isTauri()) return;

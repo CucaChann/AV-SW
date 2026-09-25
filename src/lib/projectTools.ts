@@ -5,6 +5,7 @@ import {
   qtlCandidatePowerSupply,
   qtlPowerSupplyById,
 } from "./qtlCatalog";
+import { isRecord, listWithDefaults, withDefaults } from "./sanitize";
 
 export type ProjectTool =
   | "qtl"
@@ -178,33 +179,30 @@ export const DEFAULT_TOOLS_STATE: ProjectToolsState = {
   },
 };
 
-/** Keeps object entries and fills each one's missing fields from `defaults()`. */
-function itemsWithDefaults<T extends object>(value: unknown, defaults: () => T): T[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is Partial<T> => Boolean(item) && typeof item === "object")
-    .map((item) => ({ ...defaults(), ...item }));
-}
-
-/** Fills fields missing from saved or older data with defaults. */
-export function normalizeTools(value: unknown): ProjectToolsState {
-  const parsed =
-    value && typeof value === "object" ? (value as Partial<ProjectToolsState>) : {};
+/**
+ * Saved tool state with missing or wrong-typed fields reset to defaults,
+ * including inside every list item (see sanitize.ts). Items saved by older
+ * versions may lack fields added since.
+ */
+export function normalizeTools(value: unknown, repairs?: string[]): ProjectToolsState {
+  if (value !== undefined && !isRecord(value)) repairs?.push("tools");
+  const parsed = isRecord(value) ? value : {};
+  const budget = withDefaults(parsed.budget, DEFAULT_TOOLS_STATE.budget, "tools.budget", repairs);
   return {
-    network: { ...DEFAULT_TOOLS_STATE.network, ...(parsed.network ?? {}) },
+    network: withDefaults(parsed.network, DEFAULT_TOOLS_STATE.network, "tools.network", repairs),
     budget: {
-      ...DEFAULT_TOOLS_STATE.budget,
-      ...(parsed.budget ?? {}),
-      allocations: {
-        ...DEFAULT_TOOLS_STATE.budget.allocations,
-        ...(parsed.budget?.allocations ?? {}),
-      },
+      ...budget,
+      allocations: withDefaults(
+        isRecord(parsed.budget) ? parsed.budget.allocations : undefined,
+        DEFAULT_TOOLS_STATE.budget.allocations,
+        "tools.budget.allocations",
+        repairs,
+      ),
     },
-    // Items saved by older versions may lack fields added since.
-    qtlRuns: itemsWithDefaults(parsed.qtlRuns, newQtlRun),
-    audioZones: itemsWithDefaults(parsed.audioZones, newAudioZone),
-    videoChains: itemsWithDefaults(parsed.videoChains, newVideoChain),
-    cableRuns: itemsWithDefaults(parsed.cableRuns, newCableRun),
+    qtlRuns: listWithDefaults(parsed.qtlRuns, newQtlRun, "tools.qtlRuns", repairs),
+    audioZones: listWithDefaults(parsed.audioZones, newAudioZone, "tools.audioZones", repairs),
+    videoChains: listWithDefaults(parsed.videoChains, newVideoChain, "tools.videoChains", repairs),
+    cableRuns: listWithDefaults(parsed.cableRuns, newCableRun, "tools.cableRuns", repairs),
   };
 }
 

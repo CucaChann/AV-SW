@@ -32,11 +32,15 @@ copied to a server, backed up or sent to a colleague. The file is a ZIP containe
 Code: `src/lib/projectFile.ts` (format), `src/lib/projectIO.ts` (dialogs and file
 access), `src-tauri/src/files.rs` (native read, and atomic write via a temporary
 file and rename). Opening a newer format version is refused with a clear message
-instead of losing data.
+instead of losing data. Every saved value is checked against the type of its default
+(`src/lib/sanitize.ts`); invalid values are reset and the user is told which fields
+changed, so a damaged file opens instead of crashing the workspace.
 
 ### Recovery copy
 The open project, drawings included, is copied to the app's IndexedDB shortly after
-every change (`src/lib/recovery.ts`). After a crash, forced shutdown or reload, AV-SW
+every change (`src/lib/recovery.ts`). Each drawing is stored once when it is added;
+later updates only write the small project data, so large drawing sets don't stall
+the UI. After a crash, forced shutdown or reload, AV-SW
 reopens exactly where the user left off, unsaved changes included. Choosing
 "Don't Save" when closing discards the copy.
 

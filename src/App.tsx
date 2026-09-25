@@ -29,7 +29,7 @@ import {
   activeDrawing,
   newDrawing,
   newProject,
-  parseProject,
+  parseProjectWithRepairs,
   projectNameFromPath,
   serializeProject,
   type ProjectDocument,
@@ -43,6 +43,7 @@ import {
   saveProjectBytes,
   setWindowTitle,
   showError,
+  showWarning,
 } from "./lib/projectIO";
 import {
   loadRecents,
@@ -119,27 +120,35 @@ function clearLegacyState() {
  * project.
  */
 async function restoreSession(): Promise<Session> {
-  const snapshot = await loadRecovery();
-  if (snapshot) {
-    if (!snapshot.dirty && snapshot.path && isTauri()) {
+  const recovered = await loadRecovery();
+  if (recovered) {
+    if (!recovered.dirty && recovered.path && isTauri()) {
       try {
-        const file = await readPath(snapshot.path);
+        const file = await readPath(recovered.path);
+        const { project, repairs } = parseProjectWithRepairs(file.bytes);
         return {
-          project: { ...parseProject(file.bytes), name: projectNameFromPath(snapshot.path) },
-          path: snapshot.path,
-          dirty: false,
+          project: { ...project, name: projectNameFromPath(recovered.path) },
+          path: recovered.path,
+          dirty: repairs.length > 0,
         };
       } catch {
         // Moved or deleted since; fall back to the recovery copy.
       }
     }
-    try {
-      return { project: parseProject(snapshot.file), path: snapshot.path, dirty: snapshot.dirty };
-    } catch (error) {
-      console.warn("AV-SW could not read its recovery copy", error);
-    }
+    return {
+      project: recovered.project,
+      path: recovered.path,
+      dirty: recovered.dirty || recovered.repairs.length > 0,
+    };
   }
   return migrateLegacyState() ?? { project: newProject(), path: null, dirty: false };
+}
+
+/** Tells the user which saved values were invalid and reset. */
+function repairsMessage(name: string, repairs: string[]) {
+  const shown = repairs.slice(0, 8).map((path) => `• ${path}`).join("\n");
+  const more = repairs.length > 8 ? `\n• …and ${repairs.length - 8} more` : "";
+  return `Some values in "${name}" were not valid and were reset to defaults:\n\n${shown}${more}\n\nCheck them, then save to keep the corrected project.`;
 }
 
 export default function App() {
@@ -195,12 +204,7 @@ function Workspace({ initial }: { initial: Session }) {
   // Keep the recovery copy current shortly after every change.
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void saveRecovery({
-        file: serializeProject(session.project, { appVersion: APP_VERSION }),
-        path: session.path,
-        dirty: session.dirty,
-        savedAt: new Date().toISOString(),
-      }).then((saved) => {
+      void saveRecovery(session).then((saved) => {
         if (saved) clearLegacyState();
       });
     }, RECOVERY_DELAY_MS);
@@ -262,10 +266,9 @@ function Workspace({ initial }: { initial: Session }) {
         }));
         if (result.path) rememberRecent(result.path, name);
         void saveRecovery({
-          file: bytes,
+          project: { ...current.project, name, updatedAt },
           path: savedPath,
           dirty: false,
-          savedAt: updatedAt,
         });
         return true;
       } catch (error) {
@@ -306,11 +309,13 @@ function Workspace({ initial }: { initial: Session }) {
       if (!file) return;
 
       try {
-        const opened = parseProject(file.bytes);
+        const { project: opened, repairs } = parseProjectWithRepairs(file.bytes);
         const name = projectNameFromPath(file.path ?? file.name);
         setActiveTool(null);
-        setSession({ project: { ...opened, name }, path: file.path, dirty: false });
+        // A repaired project differs from the file, so it counts as unsaved.
+        setSession({ project: { ...opened, name }, path: file.path, dirty: repairs.length > 0 });
         if (file.path) rememberRecent(file.path, name);
+        if (repairs.length > 0) await showWarning(repairsMessage(name, repairs));
       } catch (error) {
         await showError(`${file.name} could not be opened.\n\n${errorText(error)}`);
       }
