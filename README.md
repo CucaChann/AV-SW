@@ -15,6 +15,20 @@ AV-SW is being built as a **hybrid, desktop-first application**:
 
 See `docs/VISION.md` and `docs/ARCHITECTURE.md` for the product foundation.
 
+## Install AV-SW (Windows)
+
+AV-SW is a desktop program. You don't need any developer tools to use it:
+
+1. Open the repository's **Actions** tab, choose the latest **Desktop installer** run on `main`, and download **AV-SW-windows-installer**. For tagged versions, the installers are also attached to the draft release on the **Releases** page.
+2. Unzip it and run `AV-SW_<version>_x64-setup.exe` (or the `.msi`).
+3. The installer is not code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Choose **More info → Run anyway**.
+
+## Projects
+
+Each project is one `.avsw` file, like a CAD file: **File → Save** (Ctrl+S) asks where to save it the first time. You can keep it on a server, back it up or send it to a colleague. The drawings you open are stored inside the file. **File → Open Project** (Ctrl+O) and the recent-projects list reopen it.
+
+Unsaved work is also kept in a recovery copy, so AV-SW reopens where you left off after a crash or forced shutdown.
+
 ## Free development prerequisites
 
 ### Required for browser development
@@ -86,13 +100,12 @@ The Tauri build output will contain the Windows application/bundle artifacts.
 
 ## Current milestone
 
-Hybrid desktop foundation:
-- React/Vite frontend
-- Tauri application shell
-- native PDF file selection in desktop mode
-- browser file picker fallback
-- local SQLite foundation
-- PDF pan/zoom/page navigation
+Desktop program:
+- Windows installer built by GitHub Actions
+- `.avsw` project files with New / Open / Save / Save As, recent projects and unsaved-changes prompts
+- recovery copy of the open project
+- PDF and DXF drawings stored inside the project
+- browser mode kept for development (Save downloads the `.avsw` file)
 
 
 ## DXF test

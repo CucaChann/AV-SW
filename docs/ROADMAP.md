@@ -21,13 +21,13 @@
 - Survey-aware retrofit delta BOM
 - BOM CSV export
 - DWG import planned after DXF pipeline stabilizes
-- New Project
-- Open Project
-- Recent Projects
+- New Project (done: `.avsw` project files)
+- Open Project (done)
+- Recent Projects (done)
 - Local project metadata in SQLite
 - Import/reference floorplan
-- Autosave project state
-- Reopen project after application restart
+- Autosave project state (done: recovery copy of the open project)
+- Reopen project after application restart (done)
 - Manual scale calibration
 - Project/revision selector
 
