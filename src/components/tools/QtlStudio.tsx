@@ -503,6 +503,76 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                     <div><span>Capacity candidate</span><strong>{capacityLabel}</strong></div>
                   </div>
 
+                  <div className="qtl-source-row">
+                    <div>
+                      <strong>Published fixture ordering</strong>
+                      <span>{assessment.ordering.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.ordering.covered
+                        ? assessment.ordering.minLengthIn !== null && assessment.ordering.maxLengthIn !== null
+                          ? assessment.ordering.minLengthIn + "–" + assessment.ordering.maxLengthIn + " in"
+                          : "Proposed library"
+                        : "Legacy planning"}
+                    </span>
+                  </div>
+
+                  <div className="qtl-source-row psu-source">
+                    <div>
+                      <strong>Driver / output grouping</strong>
+                      <span>{assessment.power.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.power.result?.selectedCapacityW
+                        ? String(assessment.power.result.selectedCapacityW) + " W · " +
+                          String(assessment.power.result.outputCount ?? 0) +
+                          " output" +
+                          (assessment.power.result.outputCount === 1 ? "" : "s")
+                        : assessment.power.covered
+                          ? "Review"
+                          : "Legacy planning"}
+                    </span>
+                  </div>
+
+                  <div className="qtl-source-row">
+                    <div>
+                      <strong>Voltage-drop guidance</strong>
+                      <span>{assessment.voltageDrop.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.voltageDrop.result
+                        ? String(assessment.voltageDrop.result.targetDropPercent) +
+                          "% · " +
+                          String(assessment.voltageDrop.result.maxDropV) +
+                          " V max"
+                        : "Review"}
+                    </span>
+                  </div>
+
+                  {assessment.libraryIssues.length > 0 && (
+                    <div className="warning-list">
+                      {assessment.libraryIssues.map((issue) => <p key={issue}>⚠ Product library: {issue}</p>)}
+                    </div>
+                  )}
+
+                  {assessment.sources.length > 0 && (
+                    <div className="qtl-source-row">
+                      <div>
+                        <strong>Sources used by these checks</strong>
+                        <span>Records are still proposed until you verify the cited QTL documents.</span>
+                      </div>
+                      <div className="qtl-source-links">
+                        {assessment.sources.map((source) =>
+                          source.url ? (
+                            <a key={source.id} href={source.url} target="_blank" rel="noreferrer" title={source.locator ?? undefined}>
+                              {source.title} ↗
+                            </a>
+                          ) : null,
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {product && (
                     <div className="qtl-source-row">
                       <div>
