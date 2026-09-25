@@ -171,18 +171,47 @@ export const SYSTEMS: SystemDefinition[] = [
   },
 ];
 
+type LayerCount = { count: number; basis: "symbols" | "entities" };
+
+/**
+ * Counts items on layers whose names contain any token. Prefers block
+ * references (one per symbol); falls back to raw entities, which count every
+ * line/arc a symbol is drawn with and so overstate quantities.
+ */
 function countLayerMatches(
   analysis: DrawingAnalysis | null,
   tokens: string[],
-): number {
-  if (!analysis) return 0;
+): LayerCount {
+  if (!analysis) return { count: 0, basis: "entities" };
 
-  return analysis.layers
-    .filter((layer) => {
-      const name = layer.name.toLowerCase();
-      return tokens.some((token) => name.includes(token));
-    })
-    .reduce((sum, layer) => sum + layer.entityCount, 0);
+  const matching = analysis.layers.filter((layer) => {
+    const name = layer.name.toLowerCase();
+    return tokens.some((token) => name.includes(token));
+  });
+  const symbols = matching.reduce((sum, layer) => sum + (layer.insertCount ?? 0), 0);
+  if (symbols > 0) return { count: symbols, basis: "symbols" };
+  return {
+    count: matching.reduce((sum, layer) => sum + layer.entityCount, 0),
+    basis: "entities",
+  };
+}
+
+function drawingCount(found: LayerCount, noun: string) {
+  if (found.count === 0) {
+    return {
+      quantity: "TBD",
+      confidence: "Review" as const,
+      basis: `No ${noun} layers were detected in the imported drawing; field survey required.`,
+    };
+  }
+  return {
+    quantity: String(found.count),
+    confidence: found.basis === "symbols" ? ("Medium" as const) : ("Review" as const),
+    basis:
+      found.basis === "symbols"
+        ? `${found.count} ${noun} symbols (block references) found on matching drawing layers.`
+        : `${found.count} drawing entities on matching ${noun} layers; symbols drawn with several lines are counted more than once, so treat this as an upper bound.`,
+  };
 }
 
 function countRooms(
@@ -234,13 +263,8 @@ export function generatePreliminaryBom(
   const bedroomCount = countRooms(analysis, ["Primary Bedroom", "Bedroom"]);
   const officeCount = countRooms(analysis, ["Office"]);
 
-  const existingFixtures = countLayerMatches(analysis, [
-    "e-light",
-    "e-fixt",
-    "a-fixt",
-    "light",
-    "fixt",
-  ]);
+  // "fixt" alone would also match plumbing/architectural fixture layers (P-FIXT, A-FLOR-FIXT).
+  const existingFixtures = countLayerMatches(analysis, ["e-lite", "e-fixt", "light"]);
   const existingSwitches = countLayerMatches(analysis, [
     "e-switch",
     "switch",
@@ -261,43 +285,45 @@ export function generatePreliminaryBom(
   ]);
 
   if (mode === "retrofit") {
+    const fixtures = drawingCount(existingFixtures, "lighting fixture");
     add(
       "Lighting",
       undefined,
       "Existing fixtures / housings to survey",
-      existingFixtures > 0 ? String(existingFixtures) : "TBD",
+      fixtures.quantity,
       "Verify",
-      existingFixtures > 0 ? "High" : "Review",
-      existingFixtures > 0
-        ? "Existing fixture/light layers were detected in the imported drawing. Count is a drawing-entity count and must be field verified."
-        : "No reliable existing-fixture layer count was detected; field survey required.",
+      fixtures.confidence,
+      `${fixtures.basis} Field verify before reuse.`,
     );
+    const switches = drawingCount(existingSwitches, "switch / dimmer");
     add(
       "Lutron",
       "Lutron",
       "Existing switches / dimmers / control stations to survey",
-      existingSwitches > 0 ? String(existingSwitches) : "TBD",
+      switches.quantity,
       "Verify",
-      existingSwitches > 0 ? "High" : "Review",
-      "Retrofit path should reuse compatible boxes, wiring, and controls only after platform/load/wiring verification.",
+      switches.confidence,
+      `${switches.basis} Retrofit path should reuse compatible boxes, wiring, and controls only after platform/load/wiring verification.`,
     );
+    const power = drawingCount(existingPower, "power / receptacle");
     add(
       "Infrastructure",
       undefined,
       "Existing power locations to verify",
-      existingPower > 0 ? String(existingPower) : "TBD",
+      power.quantity,
       "Reuse",
-      existingPower > 0 ? "Medium" : "Review",
-      "Existing power can reduce new rough-in where location, capacity, grounding, and code/coordination remain acceptable.",
+      power.confidence,
+      `${power.basis} Existing power can reduce new rough-in where location, capacity, grounding, and code/coordination remain acceptable.`,
     );
+    const data = drawingCount(existingData, "data / telecom");
     add(
       "Network",
       undefined,
       "Existing structured-cabling drops to test",
-      existingData > 0 ? String(existingData) : "TBD",
+      data.quantity,
       "Reuse",
-      existingData > 0 ? "Medium" : "Review",
-      "Test cable category, continuity, termination quality, and achievable link speed before reuse.",
+      data.confidence,
+      `${data.basis} Test cable category, continuity, termination quality, and achievable link speed before reuse.`,
     );
   }
 
@@ -305,7 +331,7 @@ export function generatePreliminaryBom(
     "Lighting",
     "DMF Lighting",
     "Architectural downlights / fixtures",
-    mode === "retrofit" && existingFixtures > 0 ? "TBD delta" : "TBD",
+    mode === "retrofit" && existingFixtures.count > 0 ? "TBD delta" : "TBD",
     mode === "retrofit" ? "Verify" : "Add",
     "Review",
     "Final quantity/model comes from the approved lighting layout, photometrics, ceiling conditions, and fixture schedule.",

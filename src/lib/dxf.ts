@@ -39,7 +39,8 @@ export type DrawingAnalysis = {
   dimensionCount: number;
   insertCount: number;
   layerCount: number;
-  layers: Array<{ name: string; entityCount: number }>;
+  /** insertCount = block references (symbols) on the layer. */
+  layers: Array<{ name: string; entityCount: number; insertCount: number }>;
   potentialRooms: RoomCandidate[];
   wallLikeEntities: number;
   doorLikeEntities: number;
@@ -373,6 +374,7 @@ export function parseDxf(text: string): ParsedDxfDrawing {
   const entities: any[] = Array.isArray(dxf.entities) ? dxf.entities : [];
   const primitives: DxfPrimitive[] = [];
   const layerCounts = new Map<string, number>();
+  const layerInserts = new Map<string, number>();
   const potentialRooms: RoomCandidate[] = [];
 
   let lineCount = 0;
@@ -489,6 +491,7 @@ export function parseDxf(text: string): ParsedDxfDrawing {
         const name = String(entity.name || entity.block || "BLOCK");
         primitives.push({ kind: "insert", layer, position, name });
         insertCount += 1;
+        layerInserts.set(layer, (layerInserts.get(layer) || 0) + 1);
 
         if (layerLooksLike(layer, ["door"]) || /door/i.test(name)) {
           doorLikeEntities += 1;
@@ -513,7 +516,11 @@ export function parseDxf(text: string): ParsedDxfDrawing {
   const dedupedRooms = dedupeRooms(potentialRooms, bounds);
 
   const layers = Array.from(layerCounts.entries())
-    .map(([name, entityCount]) => ({ name, entityCount }))
+    .map(([name, entityCount]) => ({
+      name,
+      entityCount,
+      insertCount: layerInserts.get(name) || 0,
+    }))
     .sort((a, b) => b.entityCount - a.entityCount);
 
   const analysis: DrawingAnalysis = {
