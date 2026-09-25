@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod files;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 fn main() {
@@ -40,6 +42,10 @@ fn main() {
     }];
 
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            files::read_user_file,
+            files::write_project_file
+        ])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(
