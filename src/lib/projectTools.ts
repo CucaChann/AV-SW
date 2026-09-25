@@ -1,5 +1,9 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
-import { qtlCandidatePowerSupply, qtlPowerSupplyById } from "./qtlCatalog";
+import {
+  clampReservePct,
+  qtlCandidatePowerSupply,
+  qtlPowerSupplyById,
+} from "./qtlCatalog";
 
 export type ProjectTool =
   | "qtl"
@@ -235,11 +239,13 @@ export function qtlRunPower(run: QtlRun) {
   return Math.max(0, run.lengthFt * run.wattsPerFt * Math.max(1, run.fixtureQty ?? 1));
 }
 
-export function qtlDriverMinimum(run: QtlRun) {
-  const load = qtlRunPower(run);
-  const reserve = Math.min(Math.max(run.reservePct, 0), 80) / 100;
-  if (load <= 0 || reserve >= 1) return 0;
-  return Math.ceil((load / (1 - reserve)) / 10) * 10;
+/** Planning PSU candidate for a run, honoring its design reserve. */
+export function qtlRunPsuCandidate(run: QtlRun) {
+  return qtlCandidatePowerSupply(
+    run.powerSupplyFamilyId,
+    qtlRunPower(run),
+    run.reservePct,
+  );
 }
 
 export function qtlRunWarnings(run: QtlRun) {
@@ -253,6 +259,9 @@ export function qtlRunWarnings(run: QtlRun) {
   if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
   if (!run.productId && run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
   if ((run.fixtureQty ?? 1) <= 0) warnings.push("Fixture quantity must be greater than zero.");
+  if (clampReservePct(run.reservePct) === 0) {
+    warnings.push("No design reserve: the PSU candidate is sized at 100% of its rating. Set a reserve per QTL loading guidance.");
+  }
   return warnings;
 }
 
@@ -469,10 +478,7 @@ export function generateToolBom(
       reservePct: rawRun.reservePct ?? 0,
     };
     const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
-    const candidate = qtlCandidatePowerSupply(
-      run.powerSupplyFamilyId,
-      qtlRunPower(run),
-    );
+    const candidate = qtlRunPsuCandidate(run);
 
     items.push({
       id: `tool-${run.id}-fixture`,
@@ -494,7 +500,7 @@ export function generateToolBom(
       status,
       confidence: "Review",
       basis: candidate?.wattage
-        ? `Smallest capacity in the selected ${psu?.name ?? "PSU"} family that exceeds raw connected load is ${candidate.wattage}W. This is a planning candidate only; exact QTL model, channel grouping, protocol, environment and Class 2 architecture must be verified in the current QTL configuration/quote.`
+        ? `Smallest capacity in the selected ${psu?.name ?? "PSU"} family that carries ${qtlRunPower(run).toFixed(1)} W with a ${clampReservePct(run.reservePct)}% design reserve is ${candidate.wattage}W. This is a planning candidate only; exact QTL model, channel grouping, protocol, environment and Class 2 architecture must be verified in the current QTL configuration/quote.`
         : `Connected load is ${qtlRunPower(run).toFixed(1)} W. Selected family does not have a simple single-capacity match in the seeded data; engineering/quote review required.`,
     });
   }

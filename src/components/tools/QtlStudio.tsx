@@ -3,6 +3,7 @@ import {
   exportCsv,
   newQtlRun,
   qtlRunPower,
+  qtlRunPsuCandidate,
   qtlRunWarnings,
   type ProjectToolsState,
   type QtlRun,
@@ -12,7 +13,6 @@ import {
   QTL_FIXTURES,
   QTL_POWER_SUPPLIES,
   QTL_PRESETS,
-  qtlCandidatePowerSupply,
   qtlFixtureById,
   qtlPowerSupplyById,
   type QtlPreset,
@@ -144,10 +144,7 @@ export default function QtlStudio({ state, onChange }: Props) {
       ],
       ...state.qtlRuns.map((raw) => {
         const run = normalizedRun(raw);
-        const candidate = qtlCandidatePowerSupply(
-          run.powerSupplyFamilyId,
-          qtlRunPower(run),
-        );
+        const candidate = qtlRunPsuCandidate(run);
         return [
           run.room,
           run.application,
@@ -236,10 +233,7 @@ export default function QtlStudio({ state, onChange }: Props) {
               const run = normalizedRun(raw);
               const product = qtlFixtureById(run.productId);
               const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
-              const candidate = qtlCandidatePowerSupply(
-                run.powerSupplyFamilyId,
-                qtlRunPower(run),
-              );
+              const candidate = qtlRunPsuCandidate(run);
               const warnings = qtlRunWarnings(run);
 
               if (product?.maxLengthIn && run.lengthFt * 12 > product.maxLengthIn) {

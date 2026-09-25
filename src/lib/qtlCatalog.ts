@@ -415,12 +415,28 @@ export function qtlPowerSupplyById(id: string) {
   return QTL_POWER_SUPPLIES.find((product) => product.id === id);
 }
 
+export const QTL_MAX_RESERVE_PCT = 80;
+
+export function clampReservePct(reservePct: number) {
+  if (!Number.isFinite(reservePct)) return 0;
+  return Math.min(Math.max(reservePct, 0), QTL_MAX_RESERVE_PCT);
+}
+
+/**
+ * Smallest capacity in the family that carries `loadWatts` while keeping
+ * `reservePct` of its rating unused (e.g. 20% reserve = load at <= 80%).
+ */
 export function qtlCandidatePowerSupply(
   familyId: string,
   loadWatts: number,
+  reservePct = 0,
 ) {
   const family = qtlPowerSupplyById(familyId);
   if (!family || loadWatts <= 0) return null;
-  const wattage = family.wattages.find((value) => value >= loadWatts) ?? null;
-  return wattage ? { family, wattage } : { family, wattage: null };
+  const maxLoadFraction = 1 - clampReservePct(reservePct) / 100;
+  const wattage =
+    [...family.wattages]
+      .sort((a, b) => a - b)
+      .find((value) => loadWatts <= value * maxLoadFraction + 1e-9) ?? null;
+  return { family, wattage };
 }
