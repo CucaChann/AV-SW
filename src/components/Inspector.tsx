@@ -12,6 +12,7 @@ import {
   type RetrofitSurvey,
   type SystemName,
 } from "../lib/design";
+import { issueSummary, type ValidationIssue } from "../lib/projectTools";
 
 type Props = {
   activeSystem: SystemName;
@@ -23,6 +24,9 @@ type Props = {
   onSurveyChange: (survey: RetrofitSurvey) => void;
   view: InspectorView;
   onViewChange: (view: InspectorView) => void;
+  /** Same validateProject result the Validate tool shows. */
+  issues: ValidationIssue[];
+  onOpenValidation: () => void;
 };
 
 function BomRows({ items }: { items: BomItem[] }) {
@@ -113,8 +117,11 @@ export default function Inspector({
   onSurveyChange,
   view,
   onViewChange,
+  issues,
+  onOpenValidation,
 }: Props) {
   const [showAllBom, setShowAllBom] = useState(false);
+  const issueStatus = issueSummary(issues);
   const definition = getSystemDefinition(activeSystem);
 
   const systemDraft = useMemo(
@@ -440,9 +447,23 @@ export default function Inspector({
       <section className="issues">
         <div className="panel-heading">
           <h3>Design Issues</h3>
-          <span className="badge">0</span>
+          <span className="badge">{issueStatus.actionable.length}</span>
         </div>
-        <p className="muted">No blocking issues yet.</p>
+        <p className="muted">{issueStatus.headline}</p>
+        {issueStatus.actionable.length > 0 && (
+          <>
+            <ul className="issue-list">
+              {issueStatus.actionable.slice(0, 3).map((issue) => (
+                <li key={issue.id} className={issue.severity.toLowerCase()}>
+                  <strong>{issue.severity}</strong> · {issue.system}: {issue.message}
+                </li>
+              ))}
+            </ul>
+            <button onClick={onOpenValidation}>
+              Review all in Validate
+            </button>
+          </>
+        )}
       </section>
     </aside>
   );

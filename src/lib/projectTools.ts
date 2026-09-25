@@ -446,6 +446,24 @@ export function validateProject(input: {
   return issues;
 }
 
+/** Blockers and warnings first; what the inspector's Design Issues panel shows. */
+export function issueSummary(issues: ValidationIssue[]) {
+  const blockers = issues.filter((issue) => issue.severity === "Blocker");
+  const warnings = issues.filter((issue) => issue.severity === "Warning");
+  const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+  return {
+    blockers: blockers.length,
+    warnings: warnings.length,
+    actionable: [...blockers, ...warnings],
+    headline:
+      blockers.length + warnings.length === 0
+        ? "No blockers or warnings from the current checks."
+        : [blockers.length ? plural(blockers.length, "blocker") : "", warnings.length ? plural(warnings.length, "warning") : ""]
+            .filter(Boolean)
+            .join(", "),
+  };
+}
+
 export function exportCsv(filename: string, rows: string[][]) {
   const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
   const csv = rows.map((row) => row.map(cell).join(",")).join("\r\n");

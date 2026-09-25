@@ -2176,3 +2176,29 @@ button:focus-visible,
     grid-template-columns: 1fr;
   }
 }
+
+/* Inspector design-issues summary */
+.issue-list {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.issue-list li {
+  padding: 6px 8px;
+  border-left: 3px solid var(--border);
+  background: var(--surface-1);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.issue-list li.blocker {
+  border-left-color: #d95b5b;
+}
+
+.issue-list li.warning {
+  border-left-color: #d6aa41;
+}

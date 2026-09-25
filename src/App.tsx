@@ -20,6 +20,7 @@ import {
 import {
   DEFAULT_TOOLS_STATE,
   generateToolBom,
+  validateProject,
   type ProjectTool,
   type ProjectToolsState,
 } from "./lib/projectTools";
@@ -152,6 +153,17 @@ export default function App() {
       ...generateToolBom(projectTools, projectMode),
     ];
   }, [baseBom, projectMode, retrofitSurvey, projectTools]);
+
+  const issues = useMemo(
+    () =>
+      validateProject({
+        bom,
+        mode: projectMode,
+        survey: retrofitSurvey,
+        tools: projectTools,
+      }),
+    [bom, projectMode, retrofitSurvey, projectTools],
+  );
 
   function chooseSystem(system: SystemName) {
     setActiveTool(null);
@@ -346,6 +358,8 @@ export default function App() {
           onSurveyChange={setRetrofitSurvey}
           view={inspectorView}
           onViewChange={setInspectorView}
+          issues={issues}
+          onOpenValidation={() => setActiveTool("validate")}
         />
       </section>
     </main>
