@@ -9,15 +9,31 @@ import { evaluateLinearOrdering } from "./linearOrdering";
 import { evaluatePowerSupplyOutputGrouping } from "./powerSupplyOutputGrouping";
 import { evaluateVoltageDropGuidance } from "./voltageDropGuidance";
 
-const library = loadLibrary();
-const rule = <T>(id: string) =>
-  library.library.rules.find((candidate) => candidate.id === id) as T;
+const rules = loadLibrary().library.rules;
 
-const kurv = rule<LinearOrderingRule>("qtl-kurv-linear-ordering");
-const vers = rule<LinearOrderingRule>("qtl-vers-flush-02-linear-ordering");
-const kurvTunable = rule<LinearOrderingRule>("qtl-kurv-tunable-ordering");
-const qzPro = rule<PowerSupplyOutputGroupingRule>("qtl-qz-pro-output-grouping");
-const voltage = rule<VoltageDropGuidanceRule>("qtl-24v-voltage-drop-guidance");
+const linearRule = (id: string) =>
+  rules.find(
+    (candidate): candidate is LinearOrderingRule =>
+      candidate.id === id && candidate.kind === "linear-ordering",
+  )!;
+
+const groupingRule = (id: string) =>
+  rules.find(
+    (candidate): candidate is PowerSupplyOutputGroupingRule =>
+      candidate.id === id && candidate.kind === "power-supply-output-grouping",
+  )!;
+
+const voltageRule = (id: string) =>
+  rules.find(
+    (candidate): candidate is VoltageDropGuidanceRule =>
+      candidate.id === id && candidate.kind === "voltage-drop-guidance",
+  )!;
+
+const kurv = linearRule("qtl-kurv-linear-ordering");
+const vers = linearRule("qtl-vers-flush-02-linear-ordering");
+const kurvTunable = linearRule("qtl-kurv-tunable-ordering");
+const qzPro = groupingRule("qtl-qz-pro-output-grouping");
+const voltage = voltageRule("qtl-24v-voltage-drop-guidance");
 
 describe("QTL linear ordering", () => {
   it("splits a 240 in KURV SW request into exact orderable pieces", () => {
