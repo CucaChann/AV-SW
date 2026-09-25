@@ -66,7 +66,7 @@
 - Coordination conflicts
 
 ## V0.6 — Revision intelligence
-- Drawing revision comparison
+- Drawing revision comparison (started: devices carried to a revised drawing are marked until aligned or confirmed; DXF units/extents are compared automatically)
 - Quote/BOM mismatch detection
 - Stale vendor quote warnings
 - TBD/approval tracking

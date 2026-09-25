@@ -128,6 +128,13 @@ stage, so they move with it without re-rendering the drawing.
   sheet (stored calibration, or the DXF's own units).
 - `src/lib/qtlBridge.ts`: links a drawn linear-light line to a QTL run
   (`QtlRun.planItemId`). A linked line is priced by QTL Studio only.
+- Revisions: `carryDesignToRevision()` moves a replaced drawing's items onto its
+  revision and records each sheet in `PlanDesign.unverifiedSheets`. A DXF entry
+  keeps the replaced drawing's units and extents; `resolveDxfRevision()` clears it
+  when the new DXF matches. `alignSheet()` applies a two-point transform
+  (`similarityFromPairs`, or `rigidFromPairs` to keep the scale) to a sheet's
+  items and stored scale. App tags the DXF analysis with its drawing id so the
+  replaced drawing's analysis is never compared with itself.
 - `src/components/plan/`: overlay, symbols, Design panel, item card, scale menu.
 
 The design is undoable in `App.tsx` (snapshots of `PlanDesign`; typing is coalesced).
