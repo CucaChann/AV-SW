@@ -13,6 +13,7 @@ import {
   type QtlRun,
 } from "../../lib/projectTools";
 import { fitRunToPlan, planLengthDifference, qtlRunTotalFt } from "../../lib/qtlBridge";
+import { assessQtlRun } from "../../library/qtlRunAssessment";
 import {
   QTL_FAMILY_OVERVIEW,
   QTL_FIXTURES,
