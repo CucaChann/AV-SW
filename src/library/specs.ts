@@ -25,6 +25,7 @@ export const UNITS = [
 export type Unit = (typeof UNITS)[number];
 
 export const DIMMING_METHODS = [
+  // Source says phase dimming but does not identify leading/forward vs trailing/reverse edge.
   "phase",
   "forward-phase",
   "reverse-phase",
