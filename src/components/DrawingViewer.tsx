@@ -11,7 +11,7 @@ import {
 // pdf.js 6 relies on, which the desktop WebViews (WebView2, WKWebView,
 // WebKitGTK) may not have yet.
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import DxfCanvas from "./DxfCanvas";
 import {
   parseDxf,
@@ -117,6 +117,7 @@ export default function DrawingViewer({
 
     const pdf = document;
     let cancelled = false;
+    let renderTask: RenderTask | null = null;
 
     async function renderPage() {
       const canvas = canvasRef.current;
@@ -133,12 +134,14 @@ export default function DrawingViewer({
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
 
-        await page.render({
+        renderTask = page.render({
           canvas,
           viewport,
-        }).promise;
+        });
+        await renderTask.promise;
 
         if (!cancelled) {
+          setError(null);
           requestAnimationFrame(fitToView);
         }
       } catch (renderError) {
@@ -158,8 +161,18 @@ export default function DrawingViewer({
 
     return () => {
       cancelled = true;
+      // Frees the canvas so the next page can render; pdf.js rejects a second
+      // render on a canvas that is still in use.
+      renderTask?.cancel();
     };
   }, [document, drawingKind, fitToView, pageNumber]);
+
+  useEffect(() => {
+    if (!document) return;
+    return () => {
+      void document.loadingTask.destroy();
+    };
+  }, [document]);
 
   useEffect(() => {
     if (drawingKind === "dxf" && dxfDrawing) {
