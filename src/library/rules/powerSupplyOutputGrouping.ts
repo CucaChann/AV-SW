@@ -94,7 +94,7 @@ function packExact(
       if (seenTotals.has(symmetryKey)) continue;
       seenTotals.add(symmetryKey);
 
-      if (current + entry.exceedsCapacity(load, maxPerOutputW)) continue;
+      if (exceedsCapacity(current + entry.load, maxPerOutputW)) continue;
 
       placements += 1;
       channels[channel].push(entry);
