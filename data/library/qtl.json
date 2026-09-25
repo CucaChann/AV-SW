@@ -65,7 +65,7 @@
       "url": "https://www.qtl.lighting/voltage-drop-calculator/"
     },
     {
-      "id": "qtl-kurv-tunable-ordering",
+      "id": "qtl-kurv-tunable-guide",
       "kind": "spec-sheet",
       "title": "Q-CAP KURV for Tunable Applications - Master Ordering Guide Set",
       "publisher": "qtl",
@@ -535,7 +535,7 @@
         ]
       },
       "source": {
-        "sourceId": "qtl-kurv-tunable-ordering",
+        "sourceId": "qtl-kurv-tunable-guide",
         "locator": "A11 LENGTH (IN) / A12 EXACT/OPTIMAL"
       },
       "review": {
