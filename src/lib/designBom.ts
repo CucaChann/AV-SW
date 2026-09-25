@@ -5,6 +5,7 @@ import {
   formatFeet,
   runLengthFt,
   scaleFor,
+  unverifiedSheetKeys,
   type DrawingScale,
   type PlanDesign,
   type PlanItem,
@@ -53,6 +54,7 @@ export function designBom(design: PlanDesign, scaleOf: ScaleLookup, covered: Rea
   }
 
   const items: BomItem[] = [];
+  const unverified = unverifiedSheetKeys(design);
 
   for (const [key, group] of groups) {
     const type = deviceType(group[0].typeId);
@@ -95,6 +97,12 @@ export function designBom(design: PlanDesign, scaleOf: ScaleLookup, covered: Rea
       if (!measured) notes.push("Set the sheet scale to measure these runs.");
     }
 
+    const misaligned = group.filter((item) => unverified.has(`${item.drawingId}:${item.page}`)).length;
+    if (misaligned > 0) {
+      notes.push(
+        `${misaligned} of these ${misaligned === 1 ? "is" : "are"} on a sheet whose alignment with the revised drawing isn't verified; rooms and lengths may be off.`,
+      );
+    }
     if (!brand && !model) notes.push("Brand and model not selected yet.");
     else if (!model) notes.push("Model not selected yet.");
     else if (!brand) notes.push("Brand not selected yet.");
@@ -107,7 +115,7 @@ export function designBom(design: PlanDesign, scaleOf: ScaleLookup, covered: Rea
       quantity,
       // Placed devices are new scope in both new builds and retrofits.
       status: "Add",
-      confidence: model && measured ? "Medium" : "Review",
+      confidence: model && measured && misaligned === 0 ? "Medium" : "Review",
       basis: notes.join(" "),
     });
   }

@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { dxfSheet, panForZoom, panToCenter, pdfSheet, snapAngle } from "./planGeometry";
+import {
+  applySimilarity,
+  dxfSheet,
+  fitRect,
+  panForZoom,
+  panToCenter,
+  pdfSheet,
+  rigidFromPairs,
+  similarityAngleDeg,
+  similarityFromPairs,
+  similarityScale,
+  snapAngle,
+  usableAlignment,
+} from "./planGeometry";
 
 describe("sheet geometry", () => {
   it("round-trips DXF coordinates through the flipped stage", () => {
@@ -46,5 +59,114 @@ describe("panToCenter", () => {
     const point = { x: 400, y: 250 };
     const pan = panToCenter(point, 2, { width: 1000, height: 600 });
     expect({ x: pan.x + point.x * 2, y: pan.y + point.y * 2 }).toEqual({ x: 500, y: 300 });
+  });
+});
+
+describe("similarityFromPairs", () => {
+  it("moves by one pair", () => {
+    const t = similarityFromPairs([{ from: { x: 1, y: 2 }, to: { x: 4, y: 6 } }])!;
+    expect(applySimilarity(t, { x: 10, y: 10 })).toEqual({ x: 13, y: 14 });
+    expect(similarityScale(t)).toBe(1);
+  });
+
+  it("maps both pairs exactly and reports scale and angle", () => {
+    const pairs = [
+      { from: { x: 100, y: 50 }, to: { x: 212.5, y: -40 } },
+      { from: { x: 400, y: 50 }, to: { x: 212.5, y: 560 } },
+    ];
+    const t = similarityFromPairs(pairs)!;
+    for (const { from, to } of pairs) {
+      const mapped = applySimilarity(t, from);
+      expect(mapped.x).toBeCloseTo(to.x, 9);
+      expect(mapped.y).toBeCloseTo(to.y, 9);
+    }
+    expect(similarityScale(t)).toBeCloseTo(2);
+    expect(similarityAngleDeg(t)).toBeCloseTo(90);
+  });
+
+  it("refuses two pairs that start at the same point", () => {
+    expect(
+      similarityFromPairs([
+        { from: { x: 5, y: 5 }, to: { x: 0, y: 0 } },
+        { from: { x: 5, y: 5 }, to: { x: 9, y: 9 } },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("fitRect", () => {
+  it("centres the rectangle and keeps it inside the padded viewport", () => {
+    const rect = { minX: -400, minY: 100, maxX: 600, maxY: 600 };
+    const { zoom, pan } = fitRect(rect, { width: 1048, height: 800 });
+    expect(zoom).toBeCloseTo(1);
+    const left = rect.minX * zoom + pan.x;
+    const right = rect.maxX * zoom + pan.x;
+    expect(left).toBeCloseTo(24);
+    expect(right).toBeCloseTo(1024);
+    expect((rect.minY * zoom + pan.y + rect.maxY * zoom + pan.y) / 2).toBeCloseTo(400);
+  });
+
+  it("stays centred when the zoom is clamped", () => {
+    const rect = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+    const { zoom, pan } = fitRect(rect, { width: 1000, height: 800 }, 48, { min: 0.05, max: 4 });
+    expect(zoom).toBe(4);
+    expect(5 * zoom + pan.x).toBeCloseTo(500);
+    expect(5 * zoom + pan.y).toBeCloseTo(400);
+  });
+});
+
+describe("rigidFromPairs", () => {
+  it("turns and moves without scaling, splitting click error between the pairs", () => {
+    // The second target is 1% too far out, as a slightly-off click would be.
+    const pairs = [
+      { from: { x: 0, y: 0 }, to: { x: 100, y: 50 } },
+      { from: { x: 100, y: 0 }, to: { x: 100, y: 151 } },
+    ];
+    const t = rigidFromPairs(pairs)!;
+    expect(similarityScale(t)).toBeCloseTo(1, 12);
+    expect(similarityAngleDeg(t)).toBeCloseTo(90);
+    const first = applySimilarity(t, pairs[0].from);
+    const second = applySimilarity(t, pairs[1].from);
+    expect(first.y).toBeCloseTo(50.5);
+    expect(second.y).toBeCloseTo(150.5);
+  });
+
+  it("is a plain move for one pair", () => {
+    const t = rigidFromPairs([{ from: { x: 1, y: 1 }, to: { x: 3, y: 4 } }])!;
+    expect(applySimilarity(t, { x: 0, y: 0 })).toEqual({ x: 2, y: 3 });
+  });
+});
+
+describe("degenerate alignments", () => {
+  const apart = { x: 0, y: 0 };
+  const other = { x: 100, y: 0 };
+
+  it("refuses two targets on the same spot, with or without scaling", () => {
+    const pairs = [
+      { from: apart, to: { x: 50, y: 50 } },
+      { from: other, to: { x: 50, y: 50 } },
+    ];
+    expect(similarityFromPairs(pairs)).toBeNull();
+    expect(rigidFromPairs(pairs)).toBeNull();
+    // Nearly on the same spot is just as meaningless.
+    const nearly = [pairs[0], { from: other, to: { x: 50 + 1e-5, y: 50 } }];
+    expect(similarityFromPairs(nearly)).toBeNull();
+    expect(rigidFromPairs(nearly)).toBeNull();
+  });
+
+  it("only accepts finite transforms within the scale limits", () => {
+    expect(usableAlignment(null)).toBe(false);
+    expect(usableAlignment({ a: 0, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 0.05, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 20, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: Number.NaN, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 0.5, b: 0.5, tx: 10, ty: -4 })).toBe(true);
+    // A small target baseline gives a tiny scale: rejected even though it is a valid transform.
+    const small = similarityFromPairs([
+      { from: apart, to: { x: 50, y: 50 } },
+      { from: other, to: { x: 51, y: 50 } },
+    ]);
+    expect(small).not.toBeNull();
+    expect(usableAlignment(small)).toBe(false);
   });
 });

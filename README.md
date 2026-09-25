@@ -39,6 +39,7 @@ Open a PDF or DXF drawing, then click **Design** in the drawing toolbar (or **Pl
 - **Scale.** DXF drawings use their own units. For a PDF, choose an architectural scale or calibrate from a known dimension in the **Scale** menu. **Measure** (M) reads real distances.
 - **Outputs.** **Device Schedule** lists everything by layer (click a tag to find it on the plan) and exports CSV. Placed devices go into the BOM and replace the matching preliminary lines.
 - **QTL.** Select a linear LED line and choose **Create QTL run** to send its measured length and room to QTL Studio. The studio shows which plan line each run came from, warns when the lengths no longer match, and can split a fixture that is longer than the product's catalog maximum.
+- **Revisions.** Replace the drawing with a new revision (same file type) and keep the devices. A PDF revision is always marked **Alignment not verified**; a DXF revision is marked only when its units or extents changed. The banner offers **Show all** (finds devices that ended up off the drawing), **Align…** (click a device, then where it belongs; a second pair also turns it) and **Looks right**. Until then, the Device Schedule flags those items, their BOM lines drop to Review, and Validate warns.
 
 Designs are saved in the `.avsw` project file.
 

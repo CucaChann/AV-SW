@@ -29,8 +29,9 @@ import { designBom, effectiveScale, mergeDesignBom } from "./lib/designBom";
 import { deviceType } from "./lib/deviceCatalog";
 import { initializePersistence } from "./lib/persistence";
 import {
-  moveDesignToDrawing,
+  carryDesignToRevision,
   removeDrawingFromDesign,
+  resolveDxfRevision,
   type PlanDesign,
   type PlanItem,
 } from "./lib/planDesign";
@@ -218,7 +219,18 @@ function Workspace({ initial }: { initial: Session }) {
 
   const [recents, setRecents] = useState<RecentProject[]>(loadRecents);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
+  // Tagged with its drawing: right after a drawing is replaced the previous
+  // one's analysis is still here until the viewer reports the new one.
+  const [analysisState, setAnalysisState] = useState<{ drawingId: string | null; analysis: DrawingAnalysis | null }>({
+    drawingId: null,
+    analysis: null,
+  });
+  const setAnalysis = useCallback(
+    (analysis: DrawingAnalysis | null, drawingId: string | null) => setAnalysisState({ drawingId, analysis }),
+    [],
+  );
+  const analysisRef = useRef(analysisState);
+  analysisRef.current = analysisState;
   const [activeSystem, setActiveSystem] = useState<SystemName>("Lighting");
   const [inspectorView, setInspectorView] = useState<InspectorView>("system");
   const [activeTool, setActiveTool] = useState<ProjectTool | null>(null);
@@ -405,6 +417,8 @@ function Workspace({ initial }: { initial: Session }) {
       const current = sessionRef.current.project;
       let design = current.design;
       const previous = activeDrawing(current);
+      const previousAnalysis =
+        previous && analysisRef.current.drawingId === previous.id ? analysisRef.current.analysis : null;
       if (previous) {
         const placed = design.items.filter((item) => item.drawingId === previous.id).length;
         let keep = false;
@@ -424,7 +438,13 @@ function Workspace({ initial }: { initial: Session }) {
           if (!proceed) return;
         }
         design = keep
-          ? moveDesignToDrawing(design, previous.id, drawing.id)
+          ? carryDesignToRevision(
+              design,
+              previous.id,
+              drawing.id,
+              drawing.kind,
+              previousAnalysis ? { units: previousAnalysis.units, bounds: previousAnalysis.bounds } : null,
+            )
           : removeDrawingFromDesign(design, previous.id);
       }
       setActiveTool(null);
@@ -514,6 +534,19 @@ function Workspace({ initial }: { initial: Session }) {
   const projectTools = project.tools;
   const draft = project.draft;
   const drawing = activeDrawing(project);
+  const analysis = analysisState.drawingId === project.activeDrawingId ? analysisState.analysis : null;
+
+  // A replaced DXF left its units and extents behind; once the new one is read,
+  // clear the alignment mark if they match, or say what changed.
+  useEffect(() => {
+    if (!analysis || !project.activeDrawingId) return;
+    const current = sessionRef.current.project.design;
+    const resolved = resolveDxfRevision(current, project.activeDrawingId, {
+      units: analysis.units,
+      bounds: analysis.bounds,
+    });
+    if (resolved !== current) updateProject({ design: resolved });
+  }, [analysis, project.activeDrawingId, updateProject]);
 
   const baseBom = useMemo(
     () => generatePreliminaryBom(analysis, draft, projectMode),
@@ -599,8 +632,9 @@ function Workspace({ initial }: { initial: Session }) {
         mode: projectMode,
         survey: retrofitSurvey,
         tools: projectTools,
+        design: project.design,
       }),
-    [bom, projectMode, retrofitSurvey, projectTools],
+    [bom, projectMode, retrofitSurvey, projectTools, project.design],
   );
 
   function chooseSystem(system: SystemName) {

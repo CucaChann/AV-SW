@@ -99,7 +99,7 @@ export default function ProjectToolsWorkspace({
         {activeTool === "schedule" && <DeviceSchedule design={design} scaleOf={scaleOf} onShowPlan={onClose} onShowItem={onShowOnPlan} />}
         {activeTool === "library" && <ManufacturerLibrary />}
         {activeTool === "validate" && (
-          <ValidationPanel tools={state} bom={bom} mode={mode} survey={survey} />
+          <ValidationPanel tools={state} bom={bom} mode={mode} survey={survey} design={design} />
         )}
       </main>
     </section>

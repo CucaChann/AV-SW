@@ -1,5 +1,5 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
-import { formatFeet } from "./planDesign";
+import { formatFeet, itemsOnSheet, type PlanDesign } from "./planDesign";
 import {
   clampReservePct,
   QTL_CATALOG_REVIEW_NOTE,
@@ -545,10 +545,22 @@ export function validateProject(input: {
   mode: ProjectMode;
   survey: RetrofitSurvey;
   tools: ProjectToolsState;
+  design?: PlanDesign;
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const add = (severity: ValidationIssue["severity"], system: string, message: string) =>
     issues.push({ id: uid("check"), severity, system, message });
+
+  const design = input.design;
+  for (const sheet of design?.unverifiedSheets ?? []) {
+    const count = design ? itemsOnSheet(design, sheet.drawingId, sheet.page).length : 0;
+    if (count === 0) continue;
+    add(
+      "Warning",
+      "Floor Plan",
+      `Page ${sheet.page}: ${count} placed item${count === 1 ? "" : "s"} carried over from a replaced drawing ${count === 1 ? "is" : "are"} not verified against the new one. ${sheet.reason} Align them or confirm they line up.`,
+    );
+  }
 
   for (const run of input.tools.qtlRuns) {
     for (const warning of qtlRunWarnings(run)) add("Warning", "QTL", `${run.room || "Unassigned run"}: ${warning}`);

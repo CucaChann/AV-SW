@@ -6,12 +6,13 @@ import {
   type PlanItem,
   type PlanPoint,
 } from "../../lib/planDesign";
-import type { SheetGeometry } from "../../lib/planGeometry";
+import type { PointPair, SheetGeometry } from "../../lib/planGeometry";
 import PlanSymbol from "./PlanSymbol";
 
 export type PlanPreview =
   | { kind: "run"; typeId: string; points: PlanPoint[]; cursor: PlanPoint | null }
-  | { kind: "measure" | "calibrate"; points: PlanPoint[]; cursor: PlanPoint | null };
+  | { kind: "measure" | "calibrate"; points: PlanPoint[]; cursor: PlanPoint | null }
+  | { kind: "align"; pairs: PointPair[]; from: PlanPoint | null; cursor: PlanPoint | null };
 
 type Props = {
   sheet: SheetGeometry;
@@ -108,8 +109,29 @@ export default function PlanOverlay({ sheet, items, zoom, selectedId, showTags, 
     );
   }
 
+  function renderAlign(pairs: PointPair[], from: PlanPoint | null, cursor: PlanPoint | null) {
+    const arrows = [...pairs, ...(from ? [{ from, to: cursor ?? from }] : [])];
+    return (
+      <g className="plan-preview">
+        {arrows.map(({ from: start, to: end }, index) => {
+          const a = sheet.toStage(start);
+          const b = sheet.toStage(end);
+          return (
+            <g key={index}>
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={SELECTION} strokeWidth={px(2)} strokeDasharray={`${px(6)} ${px(4)}`} />
+              <circle cx={a.x} cy={a.y} r={px(6)} fill="none" stroke={SELECTION} strokeWidth={px(2)} />
+              <circle cx={b.x} cy={b.y} r={px(4)} fill={SELECTION} />
+              {label(String(index + 1), { x: a.x, y: a.y + px(8) }, SELECTION)}
+            </g>
+          );
+        })}
+      </g>
+    );
+  }
+
   function renderPreview() {
     if (!preview) return null;
+    if (preview.kind === "align") return renderAlign(preview.pairs, preview.from, preview.cursor);
     const points = preview.cursor ? [...preview.points, preview.cursor] : preview.points;
     if (points.length === 0) return null;
     const color =

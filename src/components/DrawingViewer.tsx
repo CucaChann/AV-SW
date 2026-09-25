@@ -15,6 +15,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import DxfCanvas from "./DxfCanvas";
 import DesignPanel from "./plan/DesignPanel";
+import { reviewMatchesSheet, toolAfterPageChange, type AlignReview, type Tool } from "./plan/editorTools";
 import ItemCard from "./plan/ItemCard";
 import PlanOverlay, { type PlanPreview } from "./plan/PlanOverlay";
 import ScaleMenu from "./plan/ScaleMenu";
@@ -29,8 +30,10 @@ import { effectiveScale } from "../lib/designBom";
 import {
   distance,
   formatFeet,
+  alignSheet,
   itemCenter,
   itemsOnSheet,
+  markSheetVerified,
   layerOf,
   nearestRoom,
   newItemId,
@@ -39,6 +42,7 @@ import {
   polylineLength,
   runLengthFt,
   scaleFor,
+  unverifiedSheet,
   withScale,
   type DrawingScale,
   type PlanDesign,
@@ -47,9 +51,18 @@ import {
 } from "../lib/planDesign";
 import {
   dxfSheet,
+  fitRect,
   panForZoom,
   panToCenter,
+  applySimilarity,
   pdfSheet,
+  rigidFromPairs,
+  similarityAngleDeg,
+  similarityFromPairs,
+  similarityScale,
+  usableAlignment,
+  type PointPair,
+  type Similarity,
   PDF_RENDER_SCALE,
   snapAngle,
   type SheetGeometry,
@@ -68,13 +81,6 @@ const DRAG_THRESHOLD = 4;
 
 type DrawingKind = "pdf" | "dxf" | null;
 
-type Tool =
-  | { kind: "select" }
-  | { kind: "place"; typeId: string }
-  | { kind: "draw"; typeId: string; points: PlanPoint[] }
-  | { kind: "measure"; points: PlanPoint[] }
-  | { kind: "calibrate"; points: PlanPoint[] };
-
 export type DesignChange = {
   /** Merge consecutive edits with the same key into one undo step (typing). */
   coalesce?: string;
@@ -91,7 +97,8 @@ type Props = {
   onDesignChange: (next: PlanDesign, change?: DesignChange) => void;
   /** Asks the app to pick a drawing and add it to the project. */
   onOpenDrawing: () => void;
-  onAnalysisChange?: (analysis: DrawingAnalysis | null) => void;
+  /** The parsed DXF's analysis, with the drawing it belongs to (null while none). */
+  onAnalysisChange?: (analysis: DrawingAnalysis | null, drawingId: string | null) => void;
   onDraftChange?: (recommendations: DraftRecommendation[]) => void;
   /** Extra buttons in the selected item's card (e.g. QTL Studio link). */
   itemActions?: (item: PlanItem, lengthFt: number | null) => ReactNode;
@@ -155,6 +162,7 @@ export default function DrawingViewer({
   const [showTags, setShowTags] = useState(true);
   const [cursor, setCursor] = useState<PlanPoint | null>(null);
   const [calibration, setCalibration] = useState<{ points: PlanPoint[]; value: string; error?: string } | null>(null);
+  const [alignReview, setAlignReview] = useState<AlignReview | null>(null);
 
   const view = useRef({ pan, zoom });
   view.current = { pan, zoom };
@@ -296,7 +304,8 @@ export default function DrawingViewer({
     setTool({ kind: "select" });
     setSelectedId(null);
     setCalibration(null);
-    onAnalysisChangeRef.current?.(null);
+    setAlignReview(null);
+    onAnalysisChangeRef.current?.(null, drawing?.id ?? null);
 
     if (!drawing) {
       setDrawingKind(null);
@@ -323,7 +332,7 @@ export default function DrawingViewer({
           if (cancelled) return;
           setDxfDrawing(parsed);
           setDrawingKind("dxf");
-          onAnalysisChangeRef.current?.(parsed.analysis);
+          onAnalysisChangeRef.current?.(parsed.analysis, current.id);
         }
       } catch (openError) {
         if (cancelled) return;
@@ -445,9 +454,50 @@ export default function DrawingViewer({
     onDesignChange({ ...design, items: [...design.items, run] });
   }
 
+  /** Where a clicked item "is" for alignment: a device's position or a run's nearest vertex. */
+  function anchorOf(itemId: string | null, point: PlanPoint) {
+    const item = itemId ? sheetItems.find((entry) => entry.id === itemId) : undefined;
+    if (!item) return point;
+    if (item.kind === "device") return item.at;
+    return item.points.reduce((best, vertex) => (distance(vertex, point) < distance(best, point) ? vertex : best));
+  }
+
+  function reviewAlignment(pairs: PointPair[]) {
+    setTool({ kind: "select" });
+    setCursor(null);
+    if (drawingId && similarityFromPairs(pairs)) {
+      setAlignReview({ drawingId, page, pairs, keepScale: drawingKind === "dxf" });
+    }
+  }
+
+  function alignmentTransform(review: AlignReview): Similarity | null {
+    return review.keepScale ? rigidFromPairs(review.pairs) : similarityFromPairs(review.pairs);
+  }
+
   function handleClick(event: MouseEvent<HTMLDivElement>, itemId: string | null) {
     const point = pointAt(event);
     if (!point || !drawingId) return;
+
+    if (tool.kind === "align") {
+      if (!tool.from) {
+        setTool({ ...tool, from: anchorOf(itemId, point) });
+        return;
+      }
+      const pairs = [...tool.pairs, { from: tool.from, to: point }];
+      // Two pairs starting or ending on the same spot can't define a turn: keep the first.
+      if (pairs.length === 2 && !similarityFromPairs(pairs)) {
+        setTool({
+          kind: "align",
+          pairs: tool.pairs,
+          from: null,
+          note: "Those two pairs start or end on the same spot. Pick the second pair again, well apart from the first.",
+        });
+        return;
+      }
+      if (pairs.length === 2) reviewAlignment(pairs);
+      else setTool({ kind: "align", pairs, from: null });
+      return;
+    }
 
     if (tool.kind === "select") {
       setSelectedId(itemId);
@@ -520,7 +570,7 @@ export default function DrawingViewer({
   }
 
   function movePointer(event: MouseEvent<HTMLDivElement>) {
-    if (tool.kind === "draw" || tool.kind === "measure" || tool.kind === "calibrate") {
+    if (tool.kind === "draw" || tool.kind === "measure" || tool.kind === "calibrate" || tool.kind === "align") {
       setCursor(pointAt(event));
     }
 
@@ -577,7 +627,7 @@ export default function DrawingViewer({
     if (!container) return;
     const onWheel = (event: WheelEvent) => {
       if (!drawingKind) return;
-      if ((event.target as Element).closest?.(".design-panel, .item-card, .calibration-dialog")) return;
+      if ((event.target as Element).closest?.(".design-panel, .item-card, .calibration-dialog, .alignment-banner")) return;
       event.preventDefault();
       const { pan: currentPan, zoom: currentZoom } = view.current;
       const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * Math.exp(-event.deltaY * 0.0015)));
@@ -598,6 +648,7 @@ export default function DrawingViewer({
 
     if (key === "Escape") {
       if (calibration) setCalibration(null);
+      else if (alignReview) setAlignReview(null);
       else if ((tool.kind === "draw" || tool.kind === "measure" || tool.kind === "calibrate") && tool.points.length > 0) {
         setTool({ ...tool, points: [] });
       } else if (tool.kind !== "select") setTool({ kind: "select" });
@@ -607,6 +658,16 @@ export default function DrawingViewer({
     if (key === "Enter" && tool.kind === "draw") {
       event.preventDefault();
       finishRun();
+      return;
+    }
+    if (key === "Enter" && tool.kind === "align" && tool.pairs.length === 1 && !tool.from) {
+      event.preventDefault();
+      reviewAlignment(tool.pairs);
+      return;
+    }
+    if (key === "Backspace" && tool.kind === "align" && (tool.from || tool.pairs.length > 0)) {
+      event.preventDefault();
+      setTool(tool.from ? { ...tool, from: null } : { kind: "align", pairs: tool.pairs.slice(0, -1), from: null });
       return;
     }
     if (key === "Backspace" && (tool.kind === "draw" || tool.kind === "measure") && tool.points.length > 0) {
@@ -632,6 +693,17 @@ export default function DrawingViewer({
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, []);
+
+  // Points and alignments picked on one PDF page must not carry over to another.
+  const shownPage = useRef(pageNumber);
+  useEffect(() => {
+    if (shownPage.current === pageNumber) return;
+    shownPage.current = pageNumber;
+    setTool((current) => toolAfterPageChange(current));
+    setCursor(null);
+    setCalibration(null);
+    setAlignReview(null);
+  }, [pageNumber]);
 
   // Sidebar shortcuts ("Place Device", "Measure").
   useEffect(() => {
@@ -723,7 +795,11 @@ export default function DrawingViewer({
   }
 
   const preview: PlanPreview | null =
-    tool.kind === "draw"
+    tool.kind === "align"
+      ? { kind: "align", pairs: tool.pairs, from: tool.from, cursor }
+      : alignReview
+        ? { kind: "align", pairs: alignReview.pairs, from: null, cursor: null }
+        : tool.kind === "draw"
       ? { kind: "run", typeId: tool.typeId, points: tool.points, cursor }
       : tool.kind === "measure" || tool.kind === "calibrate"
         ? { kind: tool.kind, points: tool.points, cursor }
@@ -742,6 +818,13 @@ export default function DrawingViewer({
     if (tool.kind === "measure") {
       const length = tool.points.length >= 2 && scale ? formatFeet(polylineLength(tool.points) / scale.unitsPerFoot) : null;
       return length ? `Measured ${length} · Esc to clear` : "Measure — click points · Esc to clear";
+    }
+    if (tool.kind === "align") {
+      if (tool.note && !tool.from) return tool.note;
+      if (tool.from) return "Align — now click where that point belongs on this drawing";
+      return tool.pairs.length === 0
+        ? "Align — click a device (or a point) that is out of place · Esc cancels"
+        : "Align — click a second device to also turn and scale, or press Enter to just move · Backspace undoes";
     }
     if (tool.kind === "calibrate") {
       return tool.points.length === 0
@@ -769,6 +852,58 @@ export default function DrawingViewer({
   const hasDrawing = Boolean(drawingKind);
   const hasDrawingSelected = Boolean(drawing);
   const status = toolStatus();
+  const sheetMark = drawingId ? unverifiedSheet(design, drawingId, page) : undefined;
+
+  function alignmentSummary(review: AlignReview) {
+    const candidate = alignmentTransform(review);
+    const usable = usableAlignment(candidate);
+    const transform = candidate ?? { a: 1, b: 0, tx: 0, ty: 0 };
+    const [first] = review.pairs;
+    const moved = distance(first.from, applySimilarity(transform, first.from));
+    // Report the turn as seen on screen: DXF y grows upward, PDF y downward.
+    const turn = similarityAngleDeg(transform) * (drawingKind === "dxf" ? 1 : -1);
+    const factor = similarityScale(transform);
+    return {
+      move: scale ? formatFeet(moved / scale.unitsPerFoot) : null,
+      turn,
+      factor,
+      twoPoint: review.pairs.length === 2,
+      large: Math.abs(factor - 1) > 0.02 || Math.abs(turn) > 5,
+      usable,
+    };
+  }
+
+  /** Fits the drawing and every item on this sheet, so items carried far off the drawing can be found. */
+  function showAll() {
+    const container = containerRef.current;
+    if (!container || !sheet) return;
+    // The Design panel would cover part of the view; it isn't needed to find or align items.
+    setPanelOpen(false);
+    const points = sheetItems.flatMap((item) => (item.kind === "device" ? [item.at] : item.points)).map(sheet.toStage);
+    const xs = [0, sheet.width, ...points.map((point) => point.x)];
+    const ys = [0, sheet.height, ...points.map((point) => point.y)];
+    const fitted = fitRect(
+      { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
+      { width: container.clientWidth, height: container.clientHeight },
+      48,
+      { min: MIN_ZOOM, max: 4 },
+    );
+    setZoom(fitted.zoom);
+    setPan(fitted.pan);
+  }
+
+  function applyAlignment() {
+    if (!alignReview || !drawingId) return;
+    // Points picked on another sheet must never move this one.
+    if (!reviewMatchesSheet(alignReview, drawingId, page)) {
+      setAlignReview(null);
+      return;
+    }
+    const transform = alignmentTransform(alignReview);
+    if (!usableAlignment(transform)) return;
+    onDesignChange(alignSheet(design, drawingId, page, transform, drawingKind === "dxf"));
+    setAlignReview(null);
+  }
   const selectedLength =
     selectedItem?.kind === "run" ? runLengthFt(selectedItem, scale) : null;
 
@@ -964,10 +1099,95 @@ export default function DrawingViewer({
             onDelete={() => removeItem(selectedItem.id)}
             onClose={() => setSelectedId(null)}
             actions={itemActions?.(selectedItem, selectedLength)}
+            alignmentNote={
+              sheetMark ? "Carried over from the replaced drawing; its position isn't verified yet." : undefined
+            }
           />
         )}
 
         {status && <div className="plan-status">{status}</div>}
+
+        {sheetMark && drawingId && !alignReview && tool.kind !== "align" && (
+          <div className="alignment-banner" role="status" onMouseDown={(event) => event.stopPropagation()}>
+            <strong>⚠ Alignment not verified</strong>
+            <p>{sheetMark.reason}</p>
+            <div className="item-card-actions">
+              <button onClick={showAll} title="Zoom out to the drawing and every carried device">
+                Show all
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedId(null);
+                  setPanelOpen(false);
+                  setTool({ kind: "align", pairs: [], from: null });
+                }}
+              >
+                Align…
+              </button>
+              <button className="primary" onClick={() => onDesignChange(markSheetVerified(design, drawingId, page))}>
+                Looks right
+              </button>
+            </div>
+          </div>
+        )}
+
+        {alignReview &&
+          (() => {
+            const summary = alignmentSummary(alignReview);
+            return (
+              <div className="calibration-dialog" role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+                <strong>Align this sheet</strong>
+                <ul className="align-summary">
+                  <li>Move {summary.move ?? "(set a scale to see the distance)"}</li>
+                  {summary.twoPoint && (
+                    <>
+                      <li>
+                        Turn {Math.abs(summary.turn).toFixed(1)}°{" "}
+                        {Math.abs(summary.turn) < 0.05 ? "" : summary.turn > 0 ? "counter-clockwise" : "clockwise"}
+                      </li>
+                      <li>Scale ×{summary.factor.toFixed(3)}</li>
+                    </>
+                  )}
+                </ul>
+                {summary.twoPoint && (
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={alignReview.keepScale}
+                      onChange={(event) => setAlignReview({ ...alignReview, keepScale: event.target.checked })}
+                    />
+                    <span>Keep the drawing's scale (turn and move only)</span>
+                  </label>
+                )}
+                <p className="muted">
+                  Every device and run on this page moves with it
+                  {summary.twoPoint && !alignReview.keepScale ? ", and a calibrated scale is adjusted to match" : ""}.
+                  Ctrl+Z undoes it.
+                </p>
+                {!summary.usable ? (
+                  <p className="error-text">
+                    These points don't give a usable alignment
+                    {summary.twoPoint ? ` (scale ×${summary.factor.toFixed(3)})` : ""}. Pick targets that match
+                    their devices and are well apart, or cancel and try again.
+                  </p>
+                ) : (
+                  summary.large && (
+                    <p className="attention-text">
+                      That's a large turn or scale change. Check that each pair of points marks the same spot.
+                    </p>
+                  )
+                )}
+                <div className="item-card-actions">
+                  <button type="button" onClick={() => setAlignReview(null)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="primary" onClick={applyAlignment} disabled={!summary.usable}>
+                    Apply
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
         {calibration && (
           <form
