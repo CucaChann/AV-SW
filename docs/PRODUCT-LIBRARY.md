@@ -134,6 +134,12 @@ Everything in `data/library/` is `proposed` by Claude and needs a person to veri
   dimming, and the 50% derating rule. These claims were captured in a claude.ai
   research session. Nobody has read the page directly since, because the build
   environment could not reach dmflighting.com.
+- **QTL:** proposed source-backed records for Q-CAP KURV, VERS-FLUSH (02),
+  QZ-PRO-PH/0-10V and QZ-ND. Deterministic rules cover published fixture
+  length/increment constraints, Exact-vs-Optimal handling where documented,
+  QZ output-channel grouping, and QTL voltage-drop target guidance. These were
+  proposed by ChatGPT from official QTL pages/documents and still require human
+  verification before issue-ready use.
 
 ## Next steps
 
@@ -143,8 +149,11 @@ Everything in `data/library/` is `proposed` by Claude and needs a person to veri
    loads), with `dimming.*` ratings from spec sheets.
 3. Add DRD2 product records per lumen package with `led.inputPowerW`.
 4. Make Savant a full ecosystem (it currently exists only as a manufacturer).
-5. Move the QTL catalog from `src/lib/qtlCatalog.ts` into `data/library/qtl.json`,
-   and move PSU sizing into a rule engine.
-6. Show library records and rule results in the Library & Validation view.
-7. Publish a JSON Schema generated from `schema.ts`, so editors validate data as
+5. Finish migrating the legacy QTL catalog from `src/lib/qtlCatalog.ts` into
+   `data/library/qtl.json`; the first source-backed fixture/PSU records and rule
+   engines are in place, but the remaining QTL families still need sourced data.
+6. Wire QTL Studio to the library rule engines after the floor-plan/QTL bridge
+   lands, so UI code no longer performs product-capacity math.
+7. Show library records and rule results in the Library & Validation view.
+8. Publish a JSON Schema generated from `schema.ts`, so editors validate data as
    it's typed.
