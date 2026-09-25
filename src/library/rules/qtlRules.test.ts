@@ -9,7 +9,8 @@ import { evaluateLinearOrdering } from "./linearOrdering";
 import { evaluatePowerSupplyOutputGrouping } from "./powerSupplyOutputGrouping";
 import { evaluateVoltageDropGuidance } from "./voltageDropGuidance";
 
-const rules = loadLibrary().library.rules;
+const loaded = loadLibrary().library;
+const rules = loaded.rules;
 
 const linearRule = (id: string) =>
   rules.find(
@@ -34,6 +35,7 @@ const vers = linearRule("qtl-vers-flush-02-linear-ordering");
 const kurvTunable = linearRule("qtl-kurv-tunable-ordering");
 const qzPro = groupingRule("qtl-qz-pro-output-grouping");
 const voltage = voltageRule("qtl-24v-voltage-drop-guidance");
+const qzProFamily = loaded.families.find((family) => family.id === "qtl-qz-pro-ph-010")!;
 
 describe("QTL linear ordering", () => {
   it("splits a 240 in KURV SW request into exact orderable pieces", () => {
@@ -168,6 +170,31 @@ describe("QTL QZ output grouping", () => {
     expect(result.fits).toBe(true);
     expect(result.selectedCapacityW).toBe(288);
     expect(result.channelsW).toEqual([[80], [80], [80]]);
+  });
+
+  it("checks selected PSU control and environment from sourced family specs", () => {
+    const compatible = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      powerSupply: qzProFamily,
+      voltageV: 24,
+      dimmingMethod: "phase",
+      environment: "wet",
+      loadsW: [50],
+    });
+    const wrongControl = evaluatePowerSupplyOutputGrouping({
+      rule: qzPro,
+      powerSupply: qzProFamily,
+      voltageV: 24,
+      dimmingMethod: "dmx",
+      environment: "wet",
+      loadsW: [50],
+    });
+
+    expect(compatible.fits).toBe(true);
+    expect(compatible.compatible).toBe(true);
+    expect(wrongControl.fits).toBe(false);
+    expect(wrongControl.compatible).toBe(false);
+    expect(wrongControl.compatibilityIssues[0]).toContain("does not list dmx control");
   });
 });
 
