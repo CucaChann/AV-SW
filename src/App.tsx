@@ -1,7 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import packageJson from "../package.json";
-import DrawingViewer from "./components/DrawingViewer";
+import DrawingViewer, { type DesignChange } from "./components/DrawingViewer";
 import ErrorBoundary from "./components/ErrorBoundary";
 import FileMenu from "./components/FileMenu";
 import Inspector from "./components/Inspector";
@@ -26,6 +26,11 @@ import {
 } from "./lib/projectTools";
 import { initializePersistence } from "./lib/persistence";
 import {
+  moveDesignToDrawing,
+  removeDrawingFromDesign,
+  type PlanDesign,
+} from "./lib/planDesign";
+import {
   activeDrawing,
   newDrawing,
   newProject,
@@ -36,6 +41,7 @@ import {
 } from "./lib/projectFile";
 import {
   askUnsavedChanges,
+  askYesNo,
   DRAWING_FILTER,
   pickAndReadFile,
   PROJECT_FILTER,
@@ -80,6 +86,17 @@ const PROJECT_TOOLS: Array<{ id: ProjectTool; label: string }> = [
   { id: "library", label: "Library" },
   { id: "validate", label: "Validate" },
 ];
+
+function isTypingTarget(target: EventTarget | null) {
+  const element = target as HTMLElement | null;
+  return Boolean(
+    element &&
+      (element.tagName === "INPUT" ||
+        element.tagName === "TEXTAREA" ||
+        element.tagName === "SELECT" ||
+        element.isContentEditable),
+  );
+}
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -194,6 +211,14 @@ function Workspace({ initial }: { initial: Session }) {
   const [activeSystem, setActiveSystem] = useState<SystemName>("Lighting");
   const [inspectorView, setInspectorView] = useState<InspectorView>("system");
   const [activeTool, setActiveTool] = useState<ProjectTool | null>(null);
+  const activeToolRef = useRef(activeTool);
+  activeToolRef.current = activeTool;
+
+  /** Shows the plan and asks the viewer for an editor tool. */
+  const requestPlanTool = useCallback((tool: "design" | "measure") => {
+    setActiveTool(null);
+    window.dispatchEvent(new CustomEvent("avsw:plan-tool", { detail: tool }));
+  }, []);
 
   useEffect(() => {
     void initializePersistence().catch((error: unknown) => {
@@ -323,18 +348,82 @@ function Workspace({ initial }: { initial: Session }) {
     [confirmLeave, forgetRecent, rememberRecent],
   );
 
+  // Design undo history (plan edits only). Cleared when the project or drawing changes.
+  const designHistory = useRef({ past: [] as PlanDesign[], future: [] as PlanDesign[], lastKey: "", lastAt: 0 });
+  const resetDesignHistory = useCallback(() => {
+    designHistory.current = { past: [], future: [], lastKey: "", lastAt: 0 };
+  }, []);
+  useEffect(resetDesignHistory, [project.id, resetDesignHistory]);
+
+  const changeDesign = useCallback(
+    (next: PlanDesign, change: DesignChange = {}) => {
+      const history = designHistory.current;
+      if (!change.live) {
+        const now = Date.now();
+        const sameEdit = Boolean(change.coalesce) && change.coalesce === history.lastKey && now - history.lastAt < 1500;
+        if (!sameEdit) {
+          history.past.push(sessionRef.current.project.design);
+          if (history.past.length > 200) history.past.shift();
+        }
+        history.future = [];
+        history.lastKey = change.coalesce ?? "";
+        history.lastAt = now;
+      }
+      updateProject({ design: next });
+    },
+    [updateProject],
+  );
+
+  const stepDesign = useCallback(
+    (direction: "undo" | "redo") => {
+      const history = designHistory.current;
+      const target = direction === "undo" ? history.past.pop() : history.future.pop();
+      if (!target) return;
+      (direction === "undo" ? history.future : history.past).push(sessionRef.current.project.design);
+      history.lastKey = "";
+      updateProject({ design: target });
+    },
+    [updateProject],
+  );
+
   const openDrawingCommand = useCallback(async () => {
     try {
       const file = await pickAndReadFile(DRAWING_FILTER);
       if (!file) return;
       const drawing = newDrawing(file.name, file.bytes);
+      const current = sessionRef.current.project;
+      let design = current.design;
+      const previous = activeDrawing(current);
+      if (previous) {
+        const placed = design.items.filter((item) => item.drawingId === previous.id).length;
+        let keep = false;
+        if (placed > 0 && previous.kind === drawing.kind) {
+          keep = await askYesNo(
+            `Keep the ${placed} devices and runs from the previous drawing on ${file.name}? Keep them when this is a new revision of the same plan.`,
+            "Keep them",
+            "Remove them",
+          );
+        } else if (placed > 0) {
+          // PDF points and DXF units don't line up, so positions can't be carried over.
+          const proceed = await askYesNo(
+            `The ${placed} devices and runs on ${previous.name} can't be moved onto a ${drawing.kind.toUpperCase()} drawing automatically, because the two drawing types use different coordinates. Remove them and open ${file.name}?`,
+            "Remove and continue",
+            "Cancel",
+          );
+          if (!proceed) return;
+        }
+        design = keep
+          ? moveDesignToDrawing(design, previous.id, drawing.id)
+          : removeDrawingFromDesign(design, previous.id);
+      }
       setActiveTool(null);
+      resetDesignHistory();
       // One drawing per project for now: a new drawing replaces the previous one.
-      updateProject({ drawings: [drawing], activeDrawingId: drawing.id, draft: [] });
+      updateProject({ drawings: [drawing], activeDrawingId: drawing.id, draft: [], design });
     } catch (error) {
       await showError(`The drawing could not be opened.\n\n${errorText(error)}`);
     }
-  }, [updateProject]);
+  }, [resetDesignHistory, updateProject]);
 
   // Keyboard shortcuts (also shown in the File menu).
   useEffect(() => {
@@ -350,11 +439,15 @@ function Workspace({ initial }: { initial: Session }) {
       } else if (key === "n" && !event.shiftKey) {
         event.preventDefault();
         void newProjectCommand();
+      } else if ((key === "z" || key === "y") && !activeToolRef.current && !isTypingTarget(event.target)) {
+        // Plan undo/redo; text fields keep their own undo.
+        event.preventDefault();
+        stepDesign(key === "y" || event.shiftKey ? "redo" : "undo");
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [newProjectCommand, openProjectCommand, save]);
+  }, [newProjectCommand, openProjectCommand, save, stepDesign]);
 
   // Ask before closing with unsaved changes.
   useEffect(() => {
@@ -601,9 +694,13 @@ function Workspace({ initial }: { initial: Session }) {
             <button onClick={() => void openDrawingCommand()}>
               {drawing ? "Replace Drawing" : "Open Drawing"}
             </button>
-            <button disabled>Measure</button>
+            <button disabled={!drawing} onClick={() => requestPlanTool("design")}>
+              Place Device
+            </button>
+            <button disabled={!drawing} onClick={() => requestPlanTool("measure")}>
+              Measure
+            </button>
             <button disabled>Draw Room</button>
-            <button disabled>Place Device</button>
           </div>
 
           <div className="sidebar-section">
@@ -639,6 +736,9 @@ function Workspace({ initial }: { initial: Session }) {
             loaded drawing is not re-parsed when the tool closes. */}
         <DrawingViewer
           drawing={drawing}
+          design={project.design}
+          active={!activeTool}
+          onDesignChange={changeDesign}
           onOpenDrawing={() => void openDrawingCommand()}
           onAnalysisChange={setAnalysis}
           onDraftChange={setDraft}

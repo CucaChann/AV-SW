@@ -128,6 +128,14 @@ export async function askUnsavedChanges(projectName: string): Promise<UnsavedCho
   return "cancel";
 }
 
+/** A two-choice question; resolves true for `yes`. */
+export async function askYesNo(question: string, yes: string, no: string): Promise<boolean> {
+  if (!isTauri()) return window.confirm(`${question}\n\nOK: ${yes}\nCancel: ${no}`);
+  const { message } = await import("@tauri-apps/plugin-dialog");
+  const result = await message(question, { title: "AV-SW", kind: "info", buttons: { ok: yes, cancel: no } });
+  return result === yes || result === "Ok";
+}
+
 export async function showError(text: string) {
   if (!isTauri()) {
     window.alert(text);

@@ -4,10 +4,12 @@ import {
   defaultDesign,
   dxfUnitsPerFoot,
   formatFeet,
+  moveDesignToDrawing,
   nearestRoom,
   nextTag,
   normalizeDesign,
   parseFeet,
+  removeDrawingFromDesign,
   runLengthFt,
   type PlacedDevice,
   type PlacedRun,
@@ -152,5 +154,25 @@ describe("normalizeDesign", () => {
 
   it("uses defaults for projects saved before the editor existed", () => {
     expect(normalizeDesign(undefined)).toEqual(defaultDesign());
+  });
+});
+
+describe("replacing a drawing", () => {
+  const design = {
+    ...defaultDesign(),
+    items: [keypad("a", "KP-1"), { ...keypad("b", "KP-2"), drawingId: "other" }],
+    scales: [{ drawingId: "d1", page: 1, unitsPerFoot: 18, label: "1/4" }],
+  };
+
+  it("moves items and scales onto the new drawing", () => {
+    const moved = moveDesignToDrawing(design, "d1", "d2");
+    expect(moved.items.map((item) => item.drawingId)).toEqual(["d2", "other"]);
+    expect(moved.scales[0].drawingId).toBe("d2");
+  });
+
+  it("or removes them", () => {
+    const removed = removeDrawingFromDesign(design, "d1");
+    expect(removed.items.map((item) => item.id)).toEqual(["b"]);
+    expect(removed.scales).toEqual([]);
   });
 });

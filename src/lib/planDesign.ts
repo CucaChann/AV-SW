@@ -292,3 +292,24 @@ export function nearestRoom(point: PlanPoint, rooms: RoomCandidate[], drawingExt
 export function layerOf(item: PlanItem): LayerKey | undefined {
   return deviceType(item.typeId)?.layer;
 }
+
+/** Items and scales of one drawing moved onto another (a new revision of the same plan). */
+export function moveDesignToDrawing(design: PlanDesign, fromDrawingId: string, toDrawingId: string): PlanDesign {
+  return {
+    ...design,
+    items: design.items.map((item) =>
+      item.drawingId === fromDrawingId ? { ...item, drawingId: toDrawingId } : item,
+    ),
+    scales: design.scales.map((scale) =>
+      scale.drawingId === fromDrawingId ? { ...scale, drawingId: toDrawingId } : scale,
+    ),
+  };
+}
+
+export function removeDrawingFromDesign(design: PlanDesign, drawingId: string): PlanDesign {
+  return {
+    ...design,
+    items: design.items.filter((item) => item.drawingId !== drawingId),
+    scales: design.scales.filter((scale) => scale.drawingId !== drawingId),
+  };
+}
