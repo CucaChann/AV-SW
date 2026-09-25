@@ -162,7 +162,7 @@ describe("validateLibrary", () => {
     byPerson.products[0].review = {
       ...proposed,
       status: "verified",
-      verifiedBy: "Dennis Lopez",
+      verifiedBy: "Alex Reviewer",
       verifiedOn: "2026-09-26",
     };
     expect(issuesFor(byPerson)).toEqual([]);
@@ -174,7 +174,7 @@ describe("validateLibrary", () => {
     file.products[0].review = {
       ...proposed,
       status: "verified",
-      verifiedBy: "Dennis Lopez",
+      verifiedBy: "Alex Reviewer",
       verifiedOn: "2026-09-26",
     };
     expect(issuesFor(file)).toContain(
