@@ -268,9 +268,44 @@ function checkIntegrity(library: Library, fileOf: Map<string, string>) {
 
   for (const rule of library.rules) {
     checkSelector(rule.id, "load", rule.load);
-    if (rule.control) checkSelector(rule.id, "control", rule.control);
+    if ("control" in rule && rule.control) {
+      checkSelector(rule.id, "control", rule.control);
+    }
     checkSourceRefs(rule.id, [rule.source]);
     checkReview(rule.id, rule.review, [rule.source]);
+
+    if (rule.kind === "linear-ordering") {
+      for (const [index, variant] of rule.params.variants.entries()) {
+        if (variant.maxLengthIn < variant.minLengthIn) {
+          report(rule.id, `params.variants[${index}]: maxLengthIn must be >= minLengthIn`);
+        }
+        if (
+          variant.lengthIncrementIn !== undefined &&
+          variant.lengthIncrementIn > variant.maxLengthIn
+        ) {
+          report(rule.id, `params.variants[${index}]: lengthIncrementIn exceeds maxLengthIn`);
+        }
+      }
+    }
+
+    if (rule.kind === "power-supply-output-grouping") {
+      for (const [index, configuration] of rule.params.configurations.entries()) {
+        const aggregateOutputLimit =
+          configuration.outputCount * configuration.maxPerOutputW;
+        if (configuration.totalCapacityW > aggregateOutputLimit + 1e-9) {
+          report(
+            rule.id,
+            `params.configurations[${index}]: totalCapacityW exceeds outputCount × maxPerOutputW`,
+          );
+        }
+      }
+    }
+
+    if (rule.kind === "voltage-drop-guidance") {
+      if (!rule.params.allowedDropPercents.includes(rule.params.defaultDropPercent)) {
+        report(rule.id, "defaultDropPercent must be one of allowedDropPercents");
+      }
+    }
   }
 
   return issues;

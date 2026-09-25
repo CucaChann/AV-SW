@@ -215,7 +215,75 @@ export const dimmerLedCapacityRuleSchema = z.strictObject({
   }),
 });
 
-export const ruleSchema = z.discriminatedUnion("kind", [dimmerLedCapacityRuleSchema]);
+/**
+ * Manufacturer ordering constraints for one linear-light family. A variant
+ * without lengthIncrementIn can still enforce min/max, but AV-SW must not claim
+ * an arbitrary requested length is orderable.
+ */
+export const linearOrderingRuleSchema = z.strictObject({
+  ...ruleBase,
+  kind: z.literal("linear-ordering"),
+  load: selectorSchema,
+  params: z.strictObject({
+    variants: z.array(
+      z.strictObject({
+        variant: text,
+        minLengthIn: z.number().gt(0),
+        maxLengthIn: z.number().gt(0),
+        lengthIncrementIn: z.number().gt(0).optional(),
+        lengthModes: z.array(z.enum(["exact", "optimal"])).min(1).optional(),
+        /** True when "optimal" requires a manufacturer chart not encoded as numeric data. */
+        optimalRequiresChart: z.boolean().optional(),
+      }),
+    ).min(1),
+  }),
+});
+
+/**
+ * A power-supply family made of one or more independently limited Class 2
+ * outputs. Total nameplate watts alone are not enough to decide whether loads
+ * fit; every output limit must also pass.
+ */
+export const powerSupplyOutputGroupingRuleSchema = z.strictObject({
+  ...ruleBase,
+  kind: z.literal("power-supply-output-grouping"),
+  load: selectorSchema,
+  params: z.strictObject({
+    voltageV: z.number().gt(0),
+    configurations: z.array(
+      z.strictObject({
+        totalCapacityW: z.number().gt(0),
+        outputCount: z.number().int().positive(),
+        maxPerOutputW: z.number().gt(0),
+      }),
+    ).min(1),
+  }),
+});
+
+/**
+ * Manufacturer voltage-drop design targets. This rule deliberately does not
+ * include conductor resistance; until sourced wire data is available, callers
+ * may pass a calculated/observed drop and AV-SW only judges it against the
+ * published target.
+ */
+export const voltageDropGuidanceRuleSchema = z.strictObject({
+  ...ruleBase,
+  kind: z.literal("voltage-drop-guidance"),
+  load: selectorSchema,
+  params: z.strictObject({
+    nominalVoltageV: z.number().gt(0),
+    allowedDropPercents: z.array(z.number().gt(0).lt(100)).min(1),
+    defaultDropPercent: z.number().gt(0).lt(100),
+    dimmerVoltageFactor: z.number().gt(0).lte(1),
+  }),
+});
+
+export const ruleSchema = z.discriminatedUnion("kind", [
+  dimmerLedCapacityRuleSchema,
+  linearOrderingRuleSchema,
+  powerSupplyOutputGroupingRuleSchema,
+  voltageDropGuidanceRuleSchema,
+]);
 
 export const libraryFileSchema = z.strictObject({
   $schema: z.string().optional(),
@@ -244,6 +312,9 @@ export type Requirement = z.infer<typeof requirementSchema>;
 export type Compatibility = z.infer<typeof compatibilitySchema>;
 export type Alternative = z.infer<typeof alternativeSchema>;
 export type DimmerLedCapacityRule = z.infer<typeof dimmerLedCapacityRuleSchema>;
+export type LinearOrderingRule = z.infer<typeof linearOrderingRuleSchema>;
+export type PowerSupplyOutputGroupingRule = z.infer<typeof powerSupplyOutputGroupingRuleSchema>;
+export type VoltageDropGuidanceRule = z.infer<typeof voltageDropGuidanceRuleSchema>;
 export type Rule = z.infer<typeof ruleSchema>;
 export type LibraryFile = z.infer<typeof libraryFileSchema>;
 

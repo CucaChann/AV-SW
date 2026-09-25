@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { loadLibrary } from "../load";
-import type { Fact, Review } from "../schema";
+import type { DimmerLedCapacityRule, Fact, Review } from "../schema";
 import type { SpecCarrier } from "../query";
 import { evaluateDimmerLedCapacity } from "./dimmerLedCapacity";
 
 // The rule comes from the real library (data/library/dmf.json). Dimmers and
 // loads below are synthetic test inputs, not product data.
-const rule = loadLibrary().library.rules.find((r) => r.id === "dmf-dimmer-led-derating")!;
+const rule = loadLibrary().library.rules.find(
+  (r): r is DimmerLedCapacityRule =>
+    r.id === "dmf-dimmer-led-derating" && r.kind === "dimmer-led-capacity",
+)!;
 
 const proposed: Review = { status: "proposed", proposedBy: "test", proposedOn: "2026-09-25" };
 const verified: Review = {
