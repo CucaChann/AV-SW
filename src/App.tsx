@@ -316,7 +316,7 @@ export default function App() {
           </div>
         </aside>
 
-        {activeTool ? (
+        {activeTool && (
           <ProjectToolsWorkspace
             activeTool={activeTool}
             onToolChange={setActiveTool}
@@ -327,26 +327,26 @@ export default function App() {
             mode={projectMode}
             survey={retrofitSurvey}
           />
-        ) : (
-          <>
-            <DrawingViewer
-              onAnalysisChange={setAnalysis}
-              onDraftChange={setDraft}
-            />
-
-            <Inspector
-              activeSystem={activeSystem}
-              mode={projectMode}
-              analysis={analysis}
-              draft={draft}
-              bom={bom}
-              survey={retrofitSurvey}
-              onSurveyChange={setRetrofitSurvey}
-              view={inspectorView}
-              onViewChange={setInspectorView}
-            />
-          </>
         )}
+
+        {/* Stay mounted while a tool is open (hidden by .tools-open) so the
+            loaded drawing survives and "Open Drawing" always has a listener. */}
+        <DrawingViewer
+          onAnalysisChange={setAnalysis}
+          onDraftChange={setDraft}
+        />
+
+        <Inspector
+          activeSystem={activeSystem}
+          mode={projectMode}
+          analysis={analysis}
+          draft={draft}
+          bom={bom}
+          survey={retrofitSurvey}
+          onSurveyChange={setRetrofitSurvey}
+          view={inspectorView}
+          onViewChange={setInspectorView}
+        />
       </section>
     </main>
   );

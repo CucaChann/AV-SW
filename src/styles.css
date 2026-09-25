@@ -1358,6 +1358,11 @@ button:focus-visible,
   grid-template-columns: 208px minmax(0, 1fr);
 }
 
+.workspace.tools-open > .canvas-wrap,
+.workspace.tools-open > .inspector {
+  display: none;
+}
+
 .project-tools-section {
   border-top-color: var(--border-strong);
 }
