@@ -440,7 +440,9 @@ export function newCableRun(): CableRun {
 export function cableRunTotal(run: CableRun) {
   const base = Math.max(0, run.measuredFt + run.verticalAllowanceFt);
   const multiplier = 1 + Math.max(0, run.serviceLoopPct) / 100 + Math.max(0, run.wastePct) / 100;
-  return Math.ceil(base * multiplier * Math.max(1, run.quantity));
+  // Round away floating-point noise first: 60 × 1.2 is 72.00000000000001, not 73 ft.
+  const feet = Math.round(base * multiplier * Math.max(1, run.quantity) * 1e6) / 1e6;
+  return Math.ceil(feet);
 }
 
 export function cableSummary(runs: CableRun[]) {
