@@ -80,11 +80,12 @@ function nearestOrderableTotals(
     if (maxTotal < 0) continue;
 
     const relative = total - minTotal;
-    const lowerSteps = Math.floor(relative / increment);
-    const upperSteps = Math.ceil(relative / increment);
+    const maxSteps = pieces * maxStepsPerPiece;
+    const clampSteps = (steps: number) => Math.min(maxSteps, Math.max(0, steps));
+    const lowerSteps = clampSteps(Math.floor(relative / increment));
+    const upperSteps = clampSteps(Math.ceil(relative / increment));
 
-    for (const steps of [lowerSteps, upperSteps]) {
-      if (steps < 0 || steps > pieces * maxStepsPerPiece) continue;
+    for (const steps of new Set([lowerSteps, upperSteps])) {
       const candidate = minTotal + steps * increment;
       if (candidate <= total && (lower === null || candidate > lower)) lower = candidate;
       if (candidate >= total && (upper === null || candidate < upper)) upper = candidate;
@@ -140,8 +141,7 @@ export function evaluateLinearOrdering(input: {
 
   if (
     input.orderingMode &&
-    selected.lengthModes &&
-    !selected.lengthModes.includes(input.orderingMode)
+    (!selected.lengthModes || !selected.lengthModes.includes(input.orderingMode))
   ) {
     return {
       ruleId: rule.id,
