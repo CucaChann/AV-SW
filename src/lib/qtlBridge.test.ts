@@ -33,8 +33,8 @@ describe("qtlRunFromPlanLine", () => {
       room: "KITCHEN",
       planItemId: "p1",
       fixtureQty: 1,
-      // Rounded down to 0.01 ft so the run never claims more than was drawn.
-      lengthFt: 12.34,
+      // Stored unrounded; only the display rounds.
+      lengthFt: 12.349,
       application: "",
       notes: "Plan line LN1.",
     });
@@ -65,7 +65,9 @@ describe("plan length checks", () => {
 
   it("fits the run to the plan keeping the fixture count", () => {
     const run = { ...newQtlRun(), lengthFt: 6, fixtureQty: 3 };
-    expect(fitRunToPlan(run, 20)).toEqual({ lengthFt: 6.66 });
-    expect(planLengthDifference({ ...run, ...fitRunToPlan(run, 20) }, 20)).toBeNull();
+    const fitted = { ...run, ...fitRunToPlan(run, 20) };
+    // The total is kept exactly, not 3 × 6.66 = 19.98.
+    expect(fitted.lengthFt * fitted.fixtureQty).toBeCloseTo(20, 9);
+    expect(planLengthDifference(fitted, 20)).toBeNull();
   });
 });

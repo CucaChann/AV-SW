@@ -112,6 +112,18 @@ describe("text placement", () => {
     expect((placed as { rotation: number }).rotation).toBeCloseTo(90);
   });
 
+  it("centres Aligned and Fit TEXT between its two points, at their angle", () => {
+    for (const halign of ["3", "5"]) {
+      const spanned = ["0", "TEXT", "8", "A-ANNO", "10", "100", "20", "100", "30", "0", "11", "300", "21", "300", "31", "0",
+        "40", "10", "50", "0", "1", "FOYER", "72", halign].join("\n");
+      const parsed = parseDxf(dxf([line(0, 0, 1000, 600), spanned]));
+      const [placed] = parsed.primitives.filter((primitive) => primitive.kind === "text");
+      expect(placed).toMatchObject({ position: { x: 200, y: 200 }, anchor: "middle", baseline: "alphabetic" });
+      expect((placed as { rotation: number }).rotation).toBeCloseTo(45);
+      expect(parsed.analysis.potentialRooms[0].position).toEqual({ x: 200, y: 200 });
+    }
+  });
+
   it("uses the aligned position for room detection", () => {
     const centered = ["0", "TEXT", "8", "A-ANNO", "10", "0", "20", "0", "30", "0", "11", "640", "21", "420", "31", "0",
       "40", "10", "1", "DINING", "72", "1"].join("\n");

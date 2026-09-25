@@ -4,8 +4,6 @@ import { newQtlRun, type QtlRun } from "./projectTools";
 /** Plan lines are drawn by hand; differences under an inch are drawing noise. */
 export const PLAN_LENGTH_TOLERANCE_FT = 1 / 12;
 
-const floorHundredths = (feet: number) => Math.floor(feet * 100 + 1e-9) / 100;
-
 export function qtlRunForPlanItem(runs: QtlRun[], itemId: string) {
   return runs.find((run) => run.planItemId === itemId);
 }
@@ -23,7 +21,7 @@ export function qtlRunFromPlanLine(item: PlacedRun, lengthFt: number): QtlRun {
     room: item.room,
     // The plan knows where the light goes, not what it lights; leave that to the designer.
     application: "",
-    lengthFt: floorHundredths(lengthFt),
+    lengthFt,
     planItemId: item.id,
     notes: item.tag ? `Plan line ${item.tag}.` : "",
   };
@@ -42,5 +40,5 @@ export function planLengthDifference(run: QtlRun, planFt: number) {
 
 /** Fit the run to the plan length, keeping its fixture count. */
 export function fitRunToPlan(run: QtlRun, planFt: number): Partial<QtlRun> {
-  return { lengthFt: floorHundredths(planFt / Math.max(1, run.fixtureQty)) };
+  return { lengthFt: planFt / Math.max(1, run.fixtureQty) };
 }

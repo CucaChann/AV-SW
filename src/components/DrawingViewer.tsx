@@ -433,7 +433,8 @@ export default function DrawingViewer({
       page,
       tag: nextTag(design.items, type.id),
       room: roomAt(points[0]),
-      brand: type.brands[0] ?? "",
+      // Suggested brands are only suggestions: the designer picks one.
+      brand: "",
       model: "",
       notes: "",
       cableType: "CAT6A",
@@ -462,7 +463,7 @@ export default function DrawingViewer({
         page,
         tag: nextTag(design.items, type.id),
         room: roomAt(point),
-        brand: type.brands[0] ?? "",
+        brand: "",
         model: "",
         notes: "",
         cableType: "CAT6A",

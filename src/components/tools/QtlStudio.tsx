@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ScaleLookup } from "../../lib/designBom";
 import { formatFeet, runLengthFt, type PlanDesign } from "../../lib/planDesign";
 import {
+  displayLengthFt,
   exportCsv,
   newQtlRun,
   qtlRunPower,
@@ -184,8 +185,8 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
           run.application,
           String(run.fixtureQty),
           run.selectedFamily,
-          String(run.lengthFt),
-          String(run.lengthFt * run.fixtureQty),
+          String(displayLengthFt(run.lengthFt)),
+          String(displayLengthFt(run.lengthFt * run.fixtureQty)),
           String(run.widthIn),
           String(run.depthIn),
           String(run.wattsPerFt),
@@ -375,7 +376,7 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
 
                     <label className="field">
                       <span>Length each (ft)</span>
-                      <input type="number" min="0" step="0.01" value={run.lengthFt} onChange={(e) => updateRun(run.id, { lengthFt: numberValue(e.target.value) })} />
+                      <input type="number" min="0" step="0.01" value={displayLengthFt(run.lengthFt)} onChange={(e) => updateRun(run.id, { lengthFt: numberValue(e.target.value) })} />
                     </label>
 
                     <label className="field">

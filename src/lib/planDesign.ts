@@ -103,6 +103,8 @@ export function normalizeDesign(value: unknown, repairs?: string[]): PlanDesign 
       );
       return withDefaults(stored, layer, `design.layers.${layer.key}`, repairs);
     });
+  } else if (value.layers !== undefined) {
+    repairs?.push("design.layers");
   }
 
   if (Array.isArray(value.items)) {
@@ -160,6 +162,8 @@ export function normalizeDesign(value: unknown, repairs?: string[]): PlanDesign 
         label: typeof scale.label === "string" ? scale.label : "",
       });
     });
+  } else if (value.scales !== undefined) {
+    repairs?.push("design.scales");
   }
 
   return design;

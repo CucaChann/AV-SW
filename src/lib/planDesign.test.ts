@@ -113,6 +113,14 @@ describe("nearestRoom", () => {
 });
 
 describe("normalizeDesign", () => {
+  it("reports layer and scale lists that are not lists", () => {
+    const repairs: string[] = [];
+    const design = normalizeDesign({ layers: "junk", items: [], scales: { page: 1 } }, repairs);
+    expect(repairs).toEqual(["design.layers", "design.scales"]);
+    expect(design.layers).toHaveLength(LAYER_DEFINITIONS.length);
+    expect(design.scales).toEqual([]);
+  });
+
   it("round-trips a valid design", () => {
     const design = { ...defaultDesign(), items: [keypad("a", "KP-1"), cable([[0, 0], [10, 0]])] };
     const repairs: string[] = [];

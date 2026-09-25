@@ -95,7 +95,9 @@ export function designBom(design: PlanDesign, scaleOf: ScaleLookup, covered: Rea
       if (!measured) notes.push("Set the sheet scale to measure these runs.");
     }
 
-    if (!model) notes.push("Model not selected yet.");
+    if (!brand && !model) notes.push("Brand and model not selected yet.");
+    else if (!model) notes.push("Model not selected yet.");
+    else if (!brand) notes.push("Brand not selected yet.");
 
     items.push({
       id: `plan-${key}`,

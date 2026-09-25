@@ -165,13 +165,24 @@ describe("QTL fixture length limits", () => {
 
   it("splits an over-length fixture into the fewest pieces that fit", () => {
     const split = qtlSplitForMax({ ...vers, lengthFt: 20, fixtureQty: 1 });
-    expect(split).toEqual({ pieces: 3, fixtureQty: 3, lengthFt: 6.66 });
+    expect(split).toMatchObject({ pieces: 3, fixtureQty: 3 });
     expect(split!.lengthFt * 12).toBeLessThanOrEqual(98);
+    // The pieces keep the whole length (not 3 × 6.66 = 19.98 ft).
+    expect(split!.lengthFt * split!.fixtureQty).toBeCloseTo(20, 9);
     // Every fixture of a multi-fixture run is split.
     expect(qtlSplitForMax({ ...vers, lengthFt: 10, fixtureQty: 2 })).toEqual({ pieces: 2, fixtureQty: 4, lengthFt: 5 });
     // Exactly at the limit, or no known limit: nothing to split.
     expect(qtlSplitForMax({ ...vers, lengthFt: 98 / 12 })).toBeNull();
     expect(qtlSplitForMax({ ...newQtlRun(), lengthFt: 40 })).toBeNull();
+  });
+
+  it("does not ask to split again after a split that lands on the limit", () => {
+    const run = { ...vers, lengthFt: (3 * 98) / 12, fixtureQty: 1 };
+    const split = qtlSplitForMax(run)!;
+    expect(split.pieces).toBe(3);
+    const after = { ...run, fixtureQty: split.fixtureQty, lengthFt: split.lengthFt };
+    expect(qtlSplitForMax(after)).toBeNull();
+    expect(qtlRunWarnings(after).some((w) => w.includes("maximum"))).toBe(false);
   });
 
   it("reports an over-length fixture once, with the split", () => {

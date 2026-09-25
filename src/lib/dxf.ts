@@ -56,6 +56,20 @@ export function textPlacement(entity: Record<string, unknown>, type: string) {
 
   const halign = Number(entity.halign) || 0;
   const valign = Number(entity.valign) || 0;
+
+  // Aligned (3) and Fit (5) stretch the baseline between both points; the
+  // angle comes from the points, not the rotation field.
+  const first = finitePoint(entity.startPoint);
+  const second = finitePoint(entity.endPoint);
+  if ((halign === 3 || halign === 5) && first && second) {
+    return {
+      position: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
+      anchor: "middle" as TextAnchor,
+      baseline: "alphabetic" as TextBaseline,
+      rotation: (Math.atan2(second.y - first.y, second.x - first.x) * 180) / Math.PI,
+    };
+  }
+
   const aligned = halign !== 0 || valign !== 0;
   const anchor: TextAnchor = halign === 1 || halign === 4 ? "middle" : halign === 2 ? "end" : "start";
   const baseline: TextBaseline =

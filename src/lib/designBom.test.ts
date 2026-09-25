@@ -117,3 +117,20 @@ describe("designBom with builder-covered items", () => {
     expect(allLinked.supersedes.has("Linear LED runs / assemblies")).toBe(true);
   });
 });
+
+describe("designBom brand and model notes", () => {
+  it("leaves the manufacturer blank until the designer picks a brand", () => {
+    const design = {
+      ...defaultDesign(),
+      items: [
+        device("s1", "ceiling-speaker", "DEN"),
+        device("s2", "wall-speaker", "DEN", { model: "Model from the spec sheet" }),
+      ],
+    };
+    const [blank, modelOnly] = bomFor(design).items;
+    expect(blank.manufacturer).toBeUndefined();
+    expect(blank.basis).toContain("Brand and model not selected yet.");
+    expect(modelOnly.manufacturer).toBeUndefined();
+    expect(modelOnly.basis).toContain("Brand not selected yet.");
+  });
+});

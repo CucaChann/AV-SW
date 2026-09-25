@@ -364,18 +364,29 @@ export function qtlLengthLimits(run: QtlRun) {
 }
 
 /**
+ * Lengths are stored unrounded so a split or a plan length keeps its exact
+ * total; comparisons allow for floating-point noise and only the display rounds.
+ */
+const LENGTH_NOISE_FT = 1e-6;
+
+/** A length for inputs and exports: at most 4 decimals of a foot (about 0.001"). */
+export function displayLengthFt(feet: number) {
+  return Number(feet.toFixed(4));
+}
+
+/**
  * The fewest equal pieces that keep every fixture within its maximum, or null
- * when the run already fits (or has no known maximum). Lengths round down to
- * 0.01 ft so a piece never ends up over the limit.
+ * when the run already fits (or has no known maximum). The pieces add up to
+ * the original length exactly.
  */
 export function qtlSplitForMax(run: QtlRun) {
   const { maxFt } = qtlLengthLimits(run);
-  if (maxFt <= 0 || run.lengthFt <= maxFt) return null;
-  const pieces = Math.ceil(run.lengthFt / maxFt - 1e-9);
+  if (maxFt <= 0 || run.lengthFt <= maxFt + LENGTH_NOISE_FT) return null;
+  const pieces = Math.ceil(run.lengthFt / maxFt - LENGTH_NOISE_FT);
   return {
     pieces,
     fixtureQty: Math.max(1, run.fixtureQty) * pieces,
-    lengthFt: Math.floor((run.lengthFt / pieces) * 100) / 100,
+    lengthFt: run.lengthFt / pieces,
   };
 }
 
@@ -392,7 +403,7 @@ export function qtlRunWarnings(run: QtlRun) {
         `Split it into at least ${split.pieces} fixtures of ${formatFeet(split.lengthFt)} each, or confirm the length with QTL.`,
     );
   }
-  if (limits.minFt && run.lengthFt > 0 && run.lengthFt < limits.minFt) {
+  if (limits.minFt && run.lengthFt > 0 && run.lengthFt < limits.minFt - LENGTH_NOISE_FT) {
     warnings.push(
       `Each fixture is ${formatFeet(run.lengthFt)}, shorter than the ${limits.source} minimum of ${formatFeet(limits.minFt)}.`,
     );
