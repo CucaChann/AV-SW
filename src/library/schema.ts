@@ -231,6 +231,9 @@ export const linearOrderingRuleSchema = z.strictObject({
         minLengthIn: z.number().gt(0),
         maxLengthIn: z.number().gt(0),
         lengthIncrementIn: z.number().gt(0).optional(),
+        lengthModes: z.array(z.enum(["exact", "optimal"])).min(1).optional(),
+        /** True when "optimal" requires a manufacturer chart not encoded as numeric data. */
+        optimalRequiresChart: z.boolean().optional(),
       }),
     ).min(1),
   }),
