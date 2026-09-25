@@ -111,9 +111,10 @@ function normalizeRoomType(label: string): string | null {
     [/great room|family room|living room|media room/, "Living / Media"],
     [/kitchen/, "Kitchen"],
     [/primary bedroom|master bedroom/, "Primary Bedroom"],
-    [/bed(room)?\s*\d*|guest bedroom/, "Bedroom"],
+    // Letters may not touch the match ("EMBEDDED" is not a bedroom), digits may ("BED2").
+    [/(?<![a-z])bed(room)?(?![a-z])|guest bedroom/, "Bedroom"],
     [/primary bath|master bath/, "Primary Bathroom"],
-    [/bath(room)?|powder room|wc\b/, "Bathroom"],
+    [/(?<![a-z])bath(room)?(?![a-z])|powder room|(?<![a-z])wc(?![a-z])/, "Bathroom"],
     [/office|study/, "Office"],
     [/dining/, "Dining"],
     [/foyer|entry|vestibule/, "Entry"],
@@ -142,34 +143,38 @@ function angleToRadians(value: number) {
   return value;
 }
 
-function collectBounds(primitives: DxfPrimitive[]): DxfBounds {
-  const points: Point2D[] = [];
+export function collectBounds(primitives: DxfPrimitive[]): DxfBounds {
+  // Loop rather than Math.min(...points): spreading hundreds of thousands of
+  // points (a normal architectural DXF) overflows the call stack.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  const include = (x: number, y: number) => {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  };
 
   for (const primitive of primitives) {
     if (primitive.kind === "line") {
-      points.push(primitive.start, primitive.end);
+      include(primitive.start.x, primitive.start.y);
+      include(primitive.end.x, primitive.end.y);
     } else if (primitive.kind === "polyline") {
-      points.push(...primitive.points);
+      for (const point of primitive.points) include(point.x, point.y);
     } else if (primitive.kind === "circle" || primitive.kind === "arc") {
-      points.push(
-        { x: primitive.center.x - primitive.radius, y: primitive.center.y - primitive.radius },
-        { x: primitive.center.x + primitive.radius, y: primitive.center.y + primitive.radius },
-      );
+      include(primitive.center.x - primitive.radius, primitive.center.y - primitive.radius);
+      include(primitive.center.x + primitive.radius, primitive.center.y + primitive.radius);
     } else {
-      points.push(primitive.position);
+      include(primitive.position.x, primitive.position.y);
     }
   }
 
-  if (points.length === 0) {
+  if (minX === Infinity) {
     return { minX: 0, minY: 0, maxX: 100, maxY: 100, width: 100, height: 100 };
   }
-
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const maxX = Math.max(...xs);
-  const maxY = Math.max(...ys);
 
   return {
     minX,
@@ -179,6 +184,26 @@ function collectBounds(primitives: DxfPrimitive[]): DxfBounds {
     width: Math.max(maxX - minX, 1),
     height: Math.max(maxY - minY, 1),
   };
+}
+
+/**
+ * Drops a room label only when the same text appears again at (nearly) the
+ * same spot, e.g. TEXT and MTEXT copies of one label. Separate rooms that
+ * share a name ("BEDROOM", "BATH") are kept.
+ */
+function dedupeRooms(rooms: RoomCandidate[], bounds: DxfBounds) {
+  const tolerance = Math.max(bounds.width, bounds.height) * 0.01;
+  const kept: RoomCandidate[] = [];
+  for (const room of rooms) {
+    const label = room.label.toLowerCase();
+    const duplicate = kept.some(
+      (other) =>
+        other.label.toLowerCase() === label &&
+        Math.hypot(other.position.x - room.position.x, other.position.y - room.position.y) <= tolerance,
+    );
+    if (!duplicate) kept.push(room);
+  }
+  return kept;
 }
 
 function buildRecommendations(
@@ -485,10 +510,7 @@ export function parseDxf(text: string): ParsedDxfDrawing {
   const rawUnitCode = Number(dxf.header?.$INSUNITS ?? dxf.header?.INSUNITS ?? 0);
   const units = UNIT_CODES[rawUnitCode] || `DXF unit code ${rawUnitCode}`;
 
-  const dedupedRooms = potentialRooms.filter((room, index, all) => {
-    const key = room.label.toLowerCase();
-    return all.findIndex((candidate) => candidate.label.toLowerCase() === key) === index;
-  });
+  const dedupedRooms = dedupeRooms(potentialRooms, bounds);
 
   const layers = Array.from(layerCounts.entries())
     .map(([name, entityCount]) => ({ name, entityCount }))
