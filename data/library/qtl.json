@@ -7,7 +7,8 @@
       "title": "Q-CAP KURV",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/products/kurv/",
-      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them."
+      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them.",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-vers-flush-02-web",
@@ -15,7 +16,8 @@
       "title": "VERS-FLUSH (02)",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/products/vers-flush-02/",
-      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them."
+      "notes": "Official QTL product page read by ChatGPT on 2026-09-25; records remain proposed until a person verifies them.",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-qz-pro-spec",
@@ -23,7 +25,8 @@
       "title": "QZ-PRO-PH/0-10V 24V DC Power Supply - 30W-288W",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/SPEC_SHEET/QTL_QZ-PRO-PH_0-10V.pdf",
-      "documentRevision": "Rev-08-24-26"
+      "documentRevision": "Rev-08-24-26",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-qz-pro-ordering",
@@ -31,7 +34,8 @@
       "title": "QZ-PRO-PH/0-10V Master Ordering Guide Set",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/qz-pro-ph0-10v-master-ordering-guide-set-761.pdf",
-      "notes": "Includes the installation wiring diagrams used for output-channel grouping."
+      "notes": "Includes the installation wiring diagrams used for output-channel grouping.",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-qz-nd-spec",
@@ -39,7 +43,8 @@
       "title": "QZ-ND 24V DC Power Supply - 30W-288W",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/SPEC_SHEET/QTL_QZ-ND.pdf",
-      "documentRevision": "Rev-08-24-26"
+      "documentRevision": "Rev-08-24-26",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-qz-nd-ordering",
@@ -47,7 +52,8 @@
       "title": "QZ-ND Master Ordering Guide Set",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/Customer-Content/www/products/Files/qz-nd-master-ordering-guide-set-434.pdf",
-      "notes": "Includes the installation wiring diagrams used for output-channel grouping."
+      "notes": "Includes the installation wiring diagrams used for output-channel grouping.",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-voltage-drop-blog",
@@ -55,14 +61,16 @@
       "title": "How to Fix Voltage Drop Between Power Supply and Fixture",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/blog/how-to-fix-voltage-drop-in-long-led-strip-runs/",
-      "documentRevision": "2026-08-06"
+      "documentRevision": "2026-08-06",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-voltage-drop-calculator",
       "kind": "manufacturer-web",
       "title": "Voltage Drop Calculator",
       "publisher": "qtl",
-      "url": "https://www.qtl.lighting/voltage-drop-calculator/"
+      "url": "https://www.qtl.lighting/voltage-drop-calculator/",
+      "accessedOn": "2026-09-25"
     },
     {
       "id": "qtl-kurv-tunable-guide",
@@ -71,7 +79,8 @@
       "publisher": "qtl",
       "url": "https://beta.qtl.lighting/Customer-Content/www/products/Files/q-cap-kurv-master-ordering-guide-set-tunable-applications-408.pdf",
       "documentRevision": "Rev-12-19-24",
-      "notes": "Official QTL ordering guide. It distinguishes Exact vs Optimal length selection; Optimal relies on fixture-length charts not yet encoded in AV-SW."
+      "notes": "Official QTL ordering guide. It distinguishes Exact vs Optimal length selection; Optimal relies on fixture-length charts not yet encoded in AV-SW.",
+      "accessedOn": "2026-09-25"
     }
   ],
   "families": [
@@ -427,7 +436,7 @@
         "status": "proposed",
         "proposedBy": "chatgpt",
         "proposedOn": "2026-09-25",
-        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule."
+        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule. Designer reserve is a separate project-policy input and is never attributed to QTL."
       }
     },
     {
@@ -477,7 +486,7 @@
         "status": "proposed",
         "proposedBy": "chatgpt",
         "proposedOn": "2026-09-25",
-        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule."
+        "notes": "No generic 20% reserve is assumed because the cited QTL documents publish output capacities but not that derating rule. Designer reserve is a separate project-policy input and is never attributed to QTL."
       }
     },
     {
@@ -507,7 +516,7 @@
         "status": "proposed",
         "proposedBy": "chatgpt",
         "proposedOn": "2026-09-25",
-        "notes": "QTL calls 3% a reasonable default for most residential/general commercial work. This rule does not invent wire resistance; predicted wire length remains a separate sourced calculation."
+        "notes": "QTL's published guidance expresses the 1%/3%/5% drop target against nominal system voltage; the 0.917 dimmer factor is used for the current/calculation-voltage step. The engine therefore evaluates a 3% target as 3% of nominal 24 V (0.72 V), while dimmer-mode current uses 22.008 V. Keep proposed until a person verifies the cited source."
       }
     },
     {
