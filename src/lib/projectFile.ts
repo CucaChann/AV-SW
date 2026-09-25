@@ -1,8 +1,9 @@
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
 import { z } from "zod";
-import { normalizeSurvey, type ProjectMode, type RetrofitSurvey } from "./design";
+import { normalizeSurvey, SYSTEMS, type ProjectMode, type RetrofitSurvey } from "./design";
 import type { DraftRecommendation } from "./dxf";
 import { normalizeTools, type ProjectToolsState } from "./projectTools";
+import { defaultDesign, normalizeDesign, type PlanDesign } from "./planDesign";
 import { isRecord } from "./sanitize";
 
 /**
@@ -16,7 +17,9 @@ import { isRecord } from "./sanitize";
 
 export const PROJECT_FILE_EXTENSION = "avsw";
 export const PROJECT_FORMAT = "avsw-project";
-export const PROJECT_FORMAT_VERSION = 1;
+// 2: adds the floor plan design (layers, placed devices and runs, sheet scales).
+// Older AV-SW versions refuse version 2 files instead of dropping the design on save.
+export const PROJECT_FORMAT_VERSION = 2;
 
 export type DrawingKind = "pdf" | "dxf";
 
@@ -39,6 +42,7 @@ export type ProjectDocument = {
   draft: DraftRecommendation[];
   drawings: ProjectDrawing[];
   activeDrawingId: string | null;
+  design: PlanDesign;
 };
 
 /** A loaded project plus the paths of fields that were invalid and reset to defaults. */
@@ -76,6 +80,7 @@ const projectJsonSchema = z.object({
   survey: z.unknown().optional(),
   tools: z.unknown().optional(),
   draft: z.unknown().optional(),
+  design: z.unknown().optional(),
   drawings: z.array(drawingEntrySchema).default([]),
   activeDrawingId: z.string().nullable().default(null),
 });
@@ -97,6 +102,7 @@ export function newProject(name = "Untitled project", now = new Date()): Project
     draft: [],
     drawings: [],
     activeDrawingId: null,
+    design: defaultDesign(),
   };
 }
 
@@ -144,6 +150,7 @@ export function projectToJson(project: ProjectDocument) {
       path: drawingPath(drawing),
     })),
     activeDrawingId: project.activeDrawingId,
+    design: project.design,
   };
 }
 
@@ -179,9 +186,7 @@ function readJson(files: Record<string, Uint8Array>, name: string): unknown {
   }
 }
 
-const DRAFT_SYSTEMS = new Set([
-  "Lighting", "Lutron", "QTL", "Shades", "Network", "Audio", "Video", "Infrastructure",
-]);
+const DRAFT_SYSTEMS = new Set<string>(SYSTEMS.map((system) => system.name));
 
 function normalizeDraft(value: unknown, repairs: string[]): DraftRecommendation[] {
   if (!Array.isArray(value)) {
@@ -244,6 +249,7 @@ export function projectFromJson(
     draft: normalizeDraft(data.draft, repairs),
     drawings,
     activeDrawingId,
+    design: normalizeDesign(data.design, repairs),
   };
   return { project, repairs };
 }

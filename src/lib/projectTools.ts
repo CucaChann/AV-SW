@@ -149,6 +149,7 @@ const systemAllocation: Record<SystemName, number> = {
   Network: 0,
   Audio: 0,
   Video: 0,
+  Control: 0,
   Infrastructure: 0,
 };
 

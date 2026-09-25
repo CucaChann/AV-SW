@@ -154,3 +154,37 @@ describe("damaged values inside a project", () => {
     expect(parseProjectWithRepairs(serializeProject(sampleProject())).repairs).toEqual([]);
   });
 });
+
+describe("floor plan design in the project file", () => {
+  it("round-trips placed devices, runs and sheet scales", () => {
+    const project = sampleProject();
+    const drawingId = project.drawings[0].id;
+    const shared = { drawingId, page: 1, room: "KITCHEN", brand: "Lutron", model: "", notes: "", cableType: "CAT6A", quantity: 1 };
+    const withDesign = {
+      ...project,
+      design: {
+        ...project.design,
+        items: [
+          { ...shared, id: "k1", typeId: "keypad", tag: "KP-1", kind: "device" as const, at: { x: 12, y: 34 }, rotation: 90 },
+          { ...shared, id: "c1", typeId: "cable-run", tag: "CBL-1", kind: "run" as const, points: [{ x: 0, y: 0 }, { x: 120, y: 0 }] },
+        ],
+        scales: [{ drawingId, page: 1, unitsPerFoot: 12, label: "Inches" }],
+      },
+    };
+    const { project: restored, repairs } = parseProjectWithRepairs(serializeProject(withDesign));
+    expect(restored.design).toEqual(withDesign.design);
+    expect(repairs).toEqual([]);
+  });
+
+  it("opens version 1 files (saved before the editor) with an empty design", () => {
+    const files = unzipSync(serializeProject(sampleProject()));
+    files["manifest.json"] = strToU8(JSON.stringify({ format: "avsw-project", formatVersion: 1 }));
+    const json = JSON.parse(new TextDecoder().decode(files["project.json"]));
+    delete json.design;
+    files["project.json"] = strToU8(JSON.stringify(json));
+    const { project, repairs } = parseProjectWithRepairs(zipSync(files));
+    expect(project.design.items).toEqual([]);
+    expect(project.design.layers.length).toBeGreaterThan(0);
+    expect(repairs).toEqual([]);
+  });
+});

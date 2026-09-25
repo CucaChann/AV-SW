@@ -1,12 +1,12 @@
 import { budgetTotals, exportCsv, type DesignTier, type ProjectToolsState } from "../../lib/projectTools";
-import type { SystemName } from "../../lib/design";
+import { SYSTEMS as SYSTEM_DEFINITIONS, type SystemName } from "../../lib/design";
 
 type Props = {
   state: ProjectToolsState;
   onChange: (state: ProjectToolsState) => void;
 };
 
-const SYSTEMS: SystemName[] = ["Lighting","Lutron","QTL","Shades","Network","Audio","Video","Infrastructure"];
+const SYSTEMS: SystemName[] = SYSTEM_DEFINITIONS.map((system) => system.name);
 
 export default function BudgetBuilder({ state, onChange }: Props) {
   const plan = state.budget;

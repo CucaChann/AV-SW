@@ -100,7 +100,7 @@ export type DrawingAnalysis = {
 
 export type DraftRecommendation = {
   id: string;
-  system: "Lighting" | "Lutron" | "QTL" | "Shades" | "Network" | "Audio" | "Video" | "Infrastructure";
+  system: "Lighting" | "Lutron" | "QTL" | "Shades" | "Network" | "Audio" | "Video" | "Control" | "Infrastructure";
   room?: string;
   title: string;
   rationale: string;
