@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Placeholder AV-SW app icon. Replace with final branding and re-run `npx tauri icon src-tauri/app-icon.svg`. -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#111827"/>
+  <g fill="none" stroke="#f59e0b" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M232 720 L352 304 L472 720"/>
+    <path d="M280 560 L424 560"/>
+    <path d="M552 304 L672 720 L792 304"/>
+  </g>
+  <rect x="232" y="792" width="560" height="28" rx="14" fill="#374151"/>
+</svg>
