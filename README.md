@@ -32,8 +32,10 @@ All of the above have free options.
 ## Install
 
 ```powershell
-npm.cmd install
+npm.cmd ci
 ```
+
+`npm ci` installs exactly the versions pinned in `package-lock.json`. Use `npm install <package>@<version>` only when intentionally changing a dependency.
 
 ## Browser development mode
 
@@ -46,6 +48,23 @@ Vite will normally serve AV-SW at:
 ```
 http://localhost:5173
 ```
+
+## Checks
+
+```powershell
+npm.cmd run check             # typecheck, tests, production build
+npm.cmd run validate:library  # product library data only
+```
+
+GitHub Actions runs the same checks, plus a desktop `cargo check`, on every pull request.
+
+## Product library
+
+Manufacturer data, compatibility, alternatives and design rules live in `data/library/` and are validated by `src/library/`. Every value cites a source, and only a person can mark a record verified. See `docs/PRODUCT-LIBRARY.md`.
+
+## Working with AI agents
+
+Claude (Claude Code) and ChatGPT (Codex) both work in this repository under the same rules in `AGENTS.md` (`CLAUDE.md` imports it). Each agent works on its own branch and opens a pull request; the other agent reviews it, and the repository owner merges.
 
 ## Desktop development mode
 
