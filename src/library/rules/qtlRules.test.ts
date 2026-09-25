@@ -15,6 +15,7 @@ const rule = <T>(id: string) =>
 
 const kurv = rule<LinearOrderingRule>("qtl-kurv-linear-ordering");
 const vers = rule<LinearOrderingRule>("qtl-vers-flush-02-linear-ordering");
+const kurvTunable = rule<LinearOrderingRule>("qtl-kurv-tunable-ordering");
 const qzPro = rule<PowerSupplyOutputGroupingRule>("qtl-qz-pro-output-grouping");
 const voltage = rule<VoltageDropGuidanceRule>("qtl-24v-voltage-drop-guidance");
 
@@ -80,6 +81,26 @@ describe("QTL linear ordering", () => {
 
     expect(result.orderable).toBeNull();
     expect(result.minLengthIn).toBeNull();
+  });
+
+  it("checks tunable Exact lengths but refuses to invent Optimal chart math", () => {
+    const exact = evaluateLinearOrdering({
+      rule: kurvTunable,
+      requestedTotalIn: 120,
+      variant: "dynamic-white-tunable",
+      orderingMode: "exact",
+    });
+    const optimal = evaluateLinearOrdering({
+      rule: kurvTunable,
+      requestedTotalIn: 120,
+      variant: "dynamic-white-tunable",
+      orderingMode: "optimal",
+    });
+
+    expect(exact.orderable).toBe(true);
+    expect(exact.segmentsIn).toEqual([120]);
+    expect(optimal.orderable).toBeNull();
+    expect(optimal.explanation).toContain("will not calculate an Optimal length yet");
   });
 });
 
