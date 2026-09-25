@@ -390,8 +390,8 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                     <div className="qtl-flow-arrow">→</div>
                     <div className="qtl-flow-node psu">
                       <span>POWER</span>
-                      <strong>{psu?.name ?? "PSU TBD"}</strong>
-                      <small>{candidate?.wattage ? `${candidate.wattage}W capacity candidate` : "Engineering review"}</small>
+                      <strong>{powerName}</strong>
+                      <small>{capacityLabel}</small>
                     </div>
                   </div>
 
@@ -499,8 +499,8 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                   <div className="calculation-strip qtl-calcs">
                     <div><span>Fixture length total</span><strong>{(run.lengthFt * run.fixtureQty).toFixed(2)} ft</strong></div>
                     <div><span>Connected load</span><strong>{qtlRunPower(run).toFixed(1)} W</strong></div>
-                    <div><span>PSU family</span><strong>{psu?.name ?? "TBD"}</strong></div>
-                    <div><span>Capacity candidate</span><strong>{candidate?.wattage ? `${candidate.wattage} W` : "Review"}</strong></div>
+                    <div><span>PSU family</span><strong>{powerName}</strong></div>
+                    <div><span>Capacity candidate</span><strong>{capacityLabel}</strong></div>
                   </div>
 
                   {product && (
