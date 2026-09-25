@@ -1,4 +1,4 @@
-import { isVerified } from "../query";
+import { isVerified, numberSpec, type SpecCarrier } from "../query";
 import type { PowerSupplyOutputGroupingRule, SourceRef } from "../schema";
 
 export type PowerSupplyGroupingResult = {
@@ -11,6 +11,8 @@ export type PowerSupplyGroupingResult = {
   channelsW: number[][] | null;
   unusedCapacityW: number | null;
   fits: boolean;
+  compatible: boolean | null;
+  compatibilityIssues: string[];
   verified: boolean;
   explanation: string;
   sources: SourceRef[];
@@ -75,8 +77,12 @@ export function evaluatePowerSupplyOutputGrouping(input: {
   rule: PowerSupplyOutputGroupingRule;
   loadsW: number[];
   voltageV: number;
+  /** The selected PSU family record, used for sourced voltage/control/environment checks. */
+  powerSupply?: SpecCarrier;
+  dimmingMethod?: string;
+  environment?: string;
 }): PowerSupplyGroupingResult {
-  const { rule, voltageV } = input;
+  const { rule, voltageV, powerSupply } = input;
   const loadsW = input.loadsW.map(round);
 
   if (!Number.isFinite(voltageV) || voltageV <= 0) {
@@ -89,8 +95,68 @@ export function evaluatePowerSupplyOutputGrouping(input: {
     throw new RangeError("loadsW must contain one or more positive finite loads");
   }
 
-  const verified = isVerified(rule);
-  const sources = [rule.source];
+  const sources: SourceRef[] = [rule.source];
+  const compatibilityIssues: string[] = [];
+
+  if (powerSupply) {
+    const outputVoltage = numberSpec(powerSupply, "electrical.outputVoltageV");
+    if (outputVoltage) {
+      sources.push(outputVoltage.fact.source);
+      if (Math.abs(outputVoltage.value - voltageV) > 1e-9) {
+        compatibilityIssues.push(
+          `${powerSupply.id} publishes ${outputVoltage.value} V output; the run group is ${voltageV} V.`,
+        );
+      }
+    }
+
+    const dimming = powerSupply.specs["dimming.methods"];
+    if (input.dimmingMethod && dimming && Array.isArray(dimming.value)) {
+      sources.push(dimming.source);
+      if (!dimming.value.includes(input.dimmingMethod)) {
+        compatibilityIssues.push(
+          `${powerSupply.id} does not list ${input.dimmingMethod} control; published methods are ${dimming.value.join(", ")}.`,
+        );
+      }
+    }
+
+    const environments = powerSupply.specs["environment.ratings"];
+    if (input.environment && environments && Array.isArray(environments.value)) {
+      sources.push(environments.source);
+      if (!environments.value.includes(input.environment)) {
+        compatibilityIssues.push(
+          `${powerSupply.id} does not list the ${input.environment} environment; published ratings are ${environments.value.join(", ")}.`,
+        );
+      }
+    }
+  }
+
+  const verified = isVerified(rule) && (!powerSupply || isVerified(powerSupply));
+  const compatible = powerSupply
+    ? compatibilityIssues.length === 0
+    : null;
+
+  if (compatibilityIssues.length > 0) {
+    const explanation =
+      `Selected PSU family is incompatible with the entered run-group requirements: ${compatibilityIssues.join(" ")}`;
+    return {
+      ruleId: rule.id,
+      voltageV,
+      loadsW,
+      selectedCapacityW: null,
+      outputCount: null,
+      maxPerOutputW: null,
+      channelsW: null,
+      unusedCapacityW: null,
+      fits: false,
+      compatible,
+      compatibilityIssues,
+      verified,
+      explanation: verified
+        ? explanation
+        : `${explanation} Uses proposed library data; confirm the cited source before issuing.`,
+      sources,
+    };
+  }
 
   if (Math.abs(voltageV - rule.params.voltageV) > 1e-9) {
     const explanation =
@@ -105,6 +171,8 @@ export function evaluatePowerSupplyOutputGrouping(input: {
       channelsW: null,
       unusedCapacityW: null,
       fits: false,
+      compatible,
+      compatibilityIssues,
       verified,
       explanation,
       sources,
@@ -142,6 +210,8 @@ export function evaluatePowerSupplyOutputGrouping(input: {
       channelsW: channels,
       unusedCapacityW: round(configuration.totalCapacityW - totalLoadW),
       fits: true,
+      compatible,
+      compatibilityIssues,
       verified,
       explanation: verified
         ? base
@@ -167,6 +237,8 @@ export function evaluatePowerSupplyOutputGrouping(input: {
     channelsW: null,
     unusedCapacityW: null,
     fits: false,
+    compatible,
+    compatibilityIssues,
     verified,
     explanation: verified
       ? reason
