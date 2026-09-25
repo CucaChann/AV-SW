@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { ScaleLookup } from "../../lib/designBom";
+import { formatFeet, runLengthFt, type PlanDesign } from "../../lib/planDesign";
 import {
+  displayLengthFt,
   exportCsv,
   newQtlRun,
   qtlRunPower,
   qtlRunPsuCandidate,
   qtlRunWarnings,
+  qtlSplitForMax,
   type ProjectToolsState,
   type QtlRun,
 } from "../../lib/projectTools";
+import { fitRunToPlan, planLengthDifference, qtlRunTotalFt } from "../../lib/qtlBridge";
 import {
   QTL_FAMILY_OVERVIEW,
   QTL_FIXTURES,
@@ -22,6 +27,12 @@ import {
 type Props = {
   state: ProjectToolsState;
   onChange: (state: ProjectToolsState) => void;
+  design: PlanDesign;
+  scaleOf: ScaleLookup;
+  /** Run to scroll to when the studio opens from the plan. */
+  focusRunId: string | null;
+  onFocusHandled: () => void;
+  onShowOnPlan: (planItemId: string) => void;
 };
 
 type QtlView = "runs" | "products" | "power";
@@ -39,11 +50,34 @@ function normalizedRun(run: QtlRun): QtlRun {
     lens: run.lens ?? "TBD",
     powerSupplyFamilyId: run.powerSupplyFamilyId ?? "qz",
     reservePct: run.reservePct ?? 0,
+    planItemId: run.planItemId ?? "",
   };
 }
 
-export default function QtlStudio({ state, onChange }: Props) {
+export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId, onFocusHandled, onShowOnPlan }: Props) {
   const [view, setView] = useState<QtlView>("runs");
+  // Outlives focusRunId (cleared once handled) so the card stays marked.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusRunId) return;
+    setView("runs");
+    setHighlightId(focusRunId);
+    // Wait a frame so the runs view is rendered before scrolling to the card.
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`qtl-run-${focusRunId}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      onFocusHandled();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusRunId, onFocusHandled]);
+
+  const planLink = (run: QtlRun) => {
+    if (!run.planItemId) return null;
+    const item = design.items.find((candidate) => candidate.id === run.planItemId);
+    if (!item || item.kind !== "run") return { item: null, planFt: null, difference: null };
+    const planFt = runLengthFt(item, scaleOf(item));
+    return { item, planFt, difference: planFt === null ? null : planLengthDifference(run, planFt) };
+  };
 
   const addRun = () =>
     onChange({ ...state, qtlRuns: [...state.qtlRuns, newQtlRun()] });
@@ -151,8 +185,8 @@ export default function QtlStudio({ state, onChange }: Props) {
           run.application,
           String(run.fixtureQty),
           run.selectedFamily,
-          String(run.lengthFt),
-          String(run.lengthFt * run.fixtureQty),
+          String(displayLengthFt(run.lengthFt)),
+          String(displayLengthFt(run.lengthFt * run.fixtureQty)),
           String(run.widthIn),
           String(run.depthIn),
           String(run.wattsPerFt),
@@ -240,15 +274,13 @@ export default function QtlStudio({ state, onChange }: Props) {
               const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
               const candidate = qtlRunPsuCandidate(run);
               const warnings = qtlRunWarnings(run);
-
-              if (product?.maxLengthIn && run.lengthFt * 12 > product.maxLengthIn) {
-                warnings.push(
-                  `Entered fixture length exceeds the current catalog max of ${product.maxLengthIn}" for this product; split/segment or confirm with QTL.`,
-                );
-              }
+              const split = qtlSplitForMax(run);
+              const link = planLink(run);
+              const linkedItem = link?.item ?? null;
+              const planFt = link?.planFt ?? null;
 
               return (
-                <article className="builder-card qtl-run-card" key={run.id}>
+                <article className={`builder-card qtl-run-card ${highlightId === run.id ? "focused" : ""}`} key={run.id} id={`qtl-run-${run.id}`}>
                   <div className="builder-card-header">
                     <div>
                       <span className="eyebrow">QTL Line {index + 1}</span>
@@ -256,6 +288,39 @@ export default function QtlStudio({ state, onChange }: Props) {
                     </div>
                     <button onClick={() => removeRun(run.id)}>Remove</button>
                   </div>
+
+                  {link && (
+                    <div className="qtl-plan-link">
+                      {linkedItem ? (
+                        <>
+                          <div>
+                            <strong>From plan line {linkedItem.tag || "(untagged)"}</strong>
+                            <span>
+                              {planFt === null
+                                ? "The sheet has no scale, so the plan length is unknown."
+                                : link.difference === null
+                                  ? `Matches the plan: ${formatFeet(planFt)}.`
+                                  : `The plan measures ${formatFeet(planFt)}; this run totals ${formatFeet(qtlRunTotalFt(run))}.`}
+                            </span>
+                          </div>
+                          <div className="tool-action-row">
+                            {planFt !== null && link.difference !== null && (
+                              <button onClick={() => updateRun(run.id, fitRunToPlan(run, planFt))}>Use plan length</button>
+                            )}
+                            <button onClick={() => onShowOnPlan(linkedItem.id)}>Show on plan</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <strong>Plan line deleted</strong>
+                            <span>The plan line this run came from is no longer on the drawing.</span>
+                          </div>
+                          <button onClick={() => updateRun(run.id, { planItemId: "" })}>Unlink</button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <div className="qtl-flow">
                     <div className="qtl-flow-node">
@@ -311,7 +376,7 @@ export default function QtlStudio({ state, onChange }: Props) {
 
                     <label className="field">
                       <span>Length each (ft)</span>
-                      <input type="number" min="0" step="0.01" value={run.lengthFt} onChange={(e) => updateRun(run.id, { lengthFt: numberValue(e.target.value) })} />
+                      <input type="number" min="0" step="0.01" value={displayLengthFt(run.lengthFt)} onChange={(e) => updateRun(run.id, { lengthFt: numberValue(e.target.value) })} />
                     </label>
 
                     <label className="field">
@@ -419,6 +484,13 @@ export default function QtlStudio({ state, onChange }: Props) {
                   {!!warnings.length && (
                     <div className="warning-list">
                       {warnings.map((warning) => <p key={warning}>⚠ {warning}</p>)}
+                      {split && (
+                        <div className="tool-action-row">
+                          <button onClick={() => updateRun(run.id, { fixtureQty: split.fixtureQty, lengthFt: split.lengthFt })}>
+                            Split into {split.fixtureQty} × {formatFeet(split.lengthFt)}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -86,3 +86,48 @@ describe("collectBounds", () => {
     expect(bounds).toMatchObject({ minX: 5, minY: 0, maxX: 40, maxY: 15, width: 35, height: 15 });
   });
 });
+
+describe("text placement", () => {
+  const texts = (source: string) =>
+    parseDxf(source).primitives.filter((primitive) => primitive.kind === "text");
+
+  it("uses the second alignment point for centered TEXT", () => {
+    // Generators often write group 10 = group 11 or 0,0 for aligned text.
+    const centered = ["0", "TEXT", "8", "A-ANNO", "10", "0", "20", "0", "30", "0", "11", "500", "21", "300", "31", "0",
+      "40", "10", "1", "CL", "72", "1", "73", "2"].join("\n");
+    const [placed] = texts(dxf([line(0, 0, 1000, 600), centered]));
+    expect(placed).toMatchObject({ position: { x: 500, y: 300 }, anchor: "middle", baseline: "middle" });
+  });
+
+  it("keeps left-aligned TEXT on its insertion point", () => {
+    const [placed] = texts(dxf([line(0, 0, 1000, 600), text("KITCHEN", 120, 80)]));
+    expect(placed).toMatchObject({ position: { x: 120, y: 80 }, anchor: "start", baseline: "alphabetic", rotation: 0 });
+  });
+
+  it("reads MTEXT attachment points and radian rotation", () => {
+    const mtext = ["0", "MTEXT", "8", "A-ANNO", "10", "200", "20", "100", "30", "0", "40", "10",
+      "71", "5", "50", String(Math.PI / 2), "1", "LIVING ROOM"].join("\n");
+    const [placed] = texts(dxf([line(0, 0, 1000, 600), mtext]));
+    expect(placed).toMatchObject({ position: { x: 200, y: 100 }, anchor: "middle", baseline: "middle" });
+    expect((placed as { rotation: number }).rotation).toBeCloseTo(90);
+  });
+
+  it("centres Aligned and Fit TEXT between its two points, at their angle", () => {
+    for (const halign of ["3", "5"]) {
+      const spanned = ["0", "TEXT", "8", "A-ANNO", "10", "100", "20", "100", "30", "0", "11", "300", "21", "300", "31", "0",
+        "40", "10", "50", "0", "1", "FOYER", "72", halign].join("\n");
+      const parsed = parseDxf(dxf([line(0, 0, 1000, 600), spanned]));
+      const [placed] = parsed.primitives.filter((primitive) => primitive.kind === "text");
+      expect(placed).toMatchObject({ position: { x: 200, y: 200 }, anchor: "middle", baseline: "alphabetic" });
+      expect((placed as { rotation: number }).rotation).toBeCloseTo(45);
+      expect(parsed.analysis.potentialRooms[0].position).toEqual({ x: 200, y: 200 });
+    }
+  });
+
+  it("uses the aligned position for room detection", () => {
+    const centered = ["0", "TEXT", "8", "A-ANNO", "10", "0", "20", "0", "30", "0", "11", "640", "21", "420", "31", "0",
+      "40", "10", "1", "DINING", "72", "1"].join("\n");
+    const [room] = parseDxf(dxf([line(0, 0, 1000, 600), centered])).analysis.potentialRooms;
+    expect(room.position).toEqual({ x: 640, y: 420 });
+  });
+});

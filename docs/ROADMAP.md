@@ -28,25 +28,25 @@
 - Import/reference floorplan
 - Autosave project state (done: recovery copy of the open project)
 - Reopen project after application restart (done)
-- Manual scale calibration
+- Manual scale calibration (done: calibrate from a known dimension or pick an architectural scale; DXF uses its own units)
 - Project/revision selector
 
 ## V0.2 — Editable design layer
-- React-Konva overlay
-- Layer selector
-- Device library
-- Place/move/rotate/delete symbols
-- Device properties
-- Manual room assignment
-- Persist design objects in SQLite
+- Design overlay (done: SVG over the drawing; React-Konva not needed so far)
+- Layer selector (done: eight design layers, each can be hidden or locked)
+- Device library (started: generic device types per layer; product models come from the library)
+- Place/move/rotate/delete symbols (done, with undo/redo)
+- Device properties (done: tag, room, brand, model, notes, cable type and count)
+- Manual room assignment (done: pre-filled from the nearest DXF room label)
+- Persist design objects (done: saved in the `.avsw` project file)
 
 ## V0.3 — Structured design data
 - Product library (v1 schema, validator and review workflow started; see `docs/PRODUCT-LIBRARY.md`)
 - Product-to-symbol relationships
-- Automatic schedules
-- BOM generation
-- Cable/drop schedule
-- QTL run length and wattage calculation
+- Automatic schedules (started: device schedule from the plan)
+- BOM generation (started: placed devices replace preliminary lines)
+- Cable/drop schedule (started: cable runs drawn on the plan, with allowances)
+- QTL run length and wattage calculation (started: plan lines become QTL runs; catalog length limits and split suggestion)
 - Basic compatibility validation
 
 ## V0.4 — Design assistance

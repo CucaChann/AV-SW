@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RETROFIT_SURVEY } from "./design";
-import { DEFAULT_TOOLS_STATE, generateToolBom, issueSummary, normalizeTools, validateProject } from "./projectTools";
+import { cableRunTotal, DEFAULT_TOOLS_STATE, generateToolBom, issueSummary, newCableRun, normalizeTools, validateProject } from "./projectTools";
 
 const validate = (tools = DEFAULT_TOOLS_STATE) =>
   validateProject({ bom: [], mode: "new-build", survey: DEFAULT_RETROFIT_SURVEY, tools });
@@ -46,9 +46,22 @@ describe("normalizeTools", () => {
       cableRuns: "not a list",
     });
     expect(tools.qtlRuns).toHaveLength(1);
-    expect(tools.qtlRuns[0]).toMatchObject({ id: "legacy-1", room: "Kitchen", selectedFamily: expect.any(String) });
+    expect(tools.qtlRuns[0]).toMatchObject({
+      id: "legacy-1",
+      room: "Kitchen",
+      selectedFamily: expect.any(String),
+      planItemId: "",
+    });
     expect(tools.audioZones[0]).toMatchObject({ room: "Den", speakerType: "In-Ceiling" });
     expect(tools.cableRuns).toEqual([]);
     expect(() => generateToolBom(tools, "new-build")).not.toThrow();
+  });
+});
+
+describe("cableRunTotal", () => {
+  it("does not add a foot for floating-point noise", () => {
+    const run = { ...newCableRun(), measuredFt: 50, verticalAllowanceFt: 10, serviceLoopPct: 10, wastePct: 10, quantity: 1 };
+    expect(cableRunTotal(run)).toBe(72);
+    expect(cableRunTotal({ ...run, measuredFt: 50.5 })).toBe(73);
   });
 });

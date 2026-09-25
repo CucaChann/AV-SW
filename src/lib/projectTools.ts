@@ -1,8 +1,10 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
+import { formatFeet } from "./planDesign";
 import {
   clampReservePct,
   QTL_CATALOG_REVIEW_NOTE,
   qtlCandidatePowerSupply,
+  qtlFixtureById,
   qtlPowerSupplyById,
 } from "./qtlCatalog";
 import { isRecord, listWithDefaults, withDefaults } from "./sanitize";
@@ -15,6 +17,7 @@ export type ProjectTool =
   | "cabling"
   | "budget"
   | "library"
+  | "schedule"
   | "validate";
 
 export type DesignTier = "Core" | "Refined" | "Signature";
@@ -40,6 +43,8 @@ export type QtlRun = {
   selectedFamily: string;
   maxRunFt: number;
   notes: string;
+  /** The linear-light line on the floor plan this run was created from ("" when none). */
+  planItemId: string;
 };
 
 export type NetworkPlan = {
@@ -149,6 +154,7 @@ const systemAllocation: Record<SystemName, number> = {
   Network: 0,
   Audio: 0,
   Video: 0,
+  Control: 0,
   Infrastructure: 0,
 };
 
@@ -213,6 +219,7 @@ export const MANUFACTURERS: ManufacturerSummary[] = [
   { name: "Ubiquiti / UniFi", categories: ["Network", "Wi-Fi", "Protect", "Access"], focus: "Gateway, switching, APs, cameras, access control and rack ecosystem." },
   { name: "Leon Speakers", categories: ["Custom Audio", "Soundbars"], focus: "Custom-width passive soundbars and architectural audio." },
   { name: "Sonance", categories: ["Architectural Audio", "Invisible", "Outdoor"], focus: "In-ceiling, in-wall, invisible, outdoor and subwoofer solutions." },
+  { name: "Revel", categories: ["Architectural Audio", "Loudspeakers"], focus: "High-performance loudspeakers, including in-wall and in-ceiling architectural models." },
   { name: "James by Sonance", categories: ["Custom Soundbars", "Small Aperture", "Subwoofers"], focus: "High-performance architectural and custom-length audio." },
   { name: "K-array", categories: ["Architectural Audio", "Luxury Audio"], focus: "Discreet line-source, flexible arrays, subs and amplifier ecosystem." },
   { name: "KSCAPE", categories: ["Audio + Lighting"], focus: "Integrated architectural rail combining lighting and audio." },
@@ -261,6 +268,7 @@ export function newQtlRun(): QtlRun {
     selectedFamily: "TBD / Select from QTL library",
     maxRunFt: 0,
     notes: "",
+    planItemId: "",
   };
 }
 
@@ -339,13 +347,66 @@ export function qtlRunPsuCandidate(run: QtlRun) {
   };
 }
 
+/**
+ * Per-fixture length limits: the catalog's for a selected product, otherwise
+ * the maximum entered on the run. Zero means no known limit.
+ */
+export function qtlLengthLimits(run: QtlRun) {
+  const product = qtlFixtureById(run.productId);
+  if (product?.maxLengthIn || product?.minLengthIn) {
+    return {
+      maxFt: (product.maxLengthIn ?? 0) / 12,
+      minFt: (product.minLengthIn ?? 0) / 12,
+      source: `${product.name} catalog`,
+    };
+  }
+  return { maxFt: Math.max(0, run.maxRunFt), minFt: 0, source: "entered" };
+}
+
+/**
+ * Lengths are stored unrounded so a split or a plan length keeps its exact
+ * total; comparisons allow for floating-point noise and only the display rounds.
+ */
+const LENGTH_NOISE_FT = 1e-6;
+
+/** A length for inputs and exports: at most 4 decimals of a foot (about 0.001"). */
+export function displayLengthFt(feet: number) {
+  return Number(feet.toFixed(4));
+}
+
+/**
+ * The fewest equal pieces that keep every fixture within its maximum, or null
+ * when the run already fits (or has no known maximum). The pieces add up to
+ * the original length exactly.
+ */
+export function qtlSplitForMax(run: QtlRun) {
+  const { maxFt } = qtlLengthLimits(run);
+  if (maxFt <= 0 || run.lengthFt <= maxFt + LENGTH_NOISE_FT) return null;
+  const pieces = Math.ceil(run.lengthFt / maxFt - LENGTH_NOISE_FT);
+  return {
+    pieces,
+    fixtureQty: Math.max(1, run.fixtureQty) * pieces,
+    lengthFt: run.lengthFt / pieces,
+  };
+}
+
 export function qtlRunWarnings(run: QtlRun) {
   const warnings: string[] = [];
   if (!run.room.trim()) warnings.push("Room / location is not assigned.");
   if (run.lengthFt <= 0) warnings.push("Run length must be greater than zero.");
   if (run.wattsPerFt <= 0) warnings.push("Watts/ft is required for load calculation.");
-  if (run.maxRunFt > 0 && run.lengthFt > run.maxRunFt) {
-    warnings.push("Run exceeds the entered manufacturer maximum; split feeds/runs or change product.");
+  const limits = qtlLengthLimits(run);
+  const split = qtlSplitForMax(run);
+  if (split && limits.maxFt) {
+    warnings.push(
+      `Each fixture is ${formatFeet(run.lengthFt)}, longer than the ${limits.source} maximum of ${formatFeet(limits.maxFt)}. ` +
+        `Split it into at least ${split.pieces} fixtures of ${formatFeet(split.lengthFt)} each, or confirm the length with QTL.`,
+    );
+  }
+  if (limits.minFt && run.lengthFt > 0 && run.lengthFt < limits.minFt - LENGTH_NOISE_FT) {
+    warnings.push(
+      `Each fixture is ${formatFeet(run.lengthFt)}, shorter than the ${limits.source} minimum of ${formatFeet(limits.minFt)}.`,
+    );
   }
   if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
   if (!run.productId && run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
@@ -364,8 +425,8 @@ export function newAudioZone(): AudioZone {
     purpose: "Distributed Audio",
     speakerCount: 2,
     speakerType: "In-Ceiling",
-    amplification: "Sonos Amp",
-    control: "Sonos",
+    amplification: "DSP / Multi-Channel Amp",
+    control: "Savant",
     subwoofer: false,
     notes: "",
   };
@@ -439,7 +500,9 @@ export function newCableRun(): CableRun {
 export function cableRunTotal(run: CableRun) {
   const base = Math.max(0, run.measuredFt + run.verticalAllowanceFt);
   const multiplier = 1 + Math.max(0, run.serviceLoopPct) / 100 + Math.max(0, run.wastePct) / 100;
-  return Math.ceil(base * multiplier * Math.max(1, run.quantity));
+  // Round away floating-point noise first: 60 × 1.2 is 72.00000000000001, not 73 ft.
+  const feet = Math.round(base * multiplier * Math.max(1, run.quantity) * 1e6) / 1e6;
+  return Math.ceil(feet);
 }
 
 export function cableSummary(runs: CableRun[]) {
@@ -594,7 +657,7 @@ export function generateToolBom(
       id: `tool-${run.id}-fixture`,
       system: "QTL",
       manufacturer: "QTL",
-      item: `${run.application} — ${run.selectedFamily}`,
+      item: [run.application.trim(), run.selectedFamily].filter(Boolean).join(" — "),
       quantity: `${run.fixtureQty} × ${run.lengthFt.toFixed(2)} ft`,
       status,
       confidence: run.selectedFamily.startsWith("TBD") ? "Review" : "Medium",

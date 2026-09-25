@@ -1,11 +1,12 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import packageJson from "../package.json";
-import DrawingViewer from "./components/DrawingViewer";
+import DrawingViewer, { type DesignChange } from "./components/DrawingViewer";
 import ErrorBoundary from "./components/ErrorBoundary";
 import FileMenu from "./components/FileMenu";
 import Inspector from "./components/Inspector";
 import ProjectToolsWorkspace from "./components/ProjectToolsWorkspace";
+import QtlLinkActions from "./components/plan/QtlLinkActions";
 import type { DrawingAnalysis, DraftRecommendation } from "./lib/dxf";
 import {
   applyRetrofitSurvey,
@@ -24,7 +25,15 @@ import {
   type ProjectTool,
   type ProjectToolsState,
 } from "./lib/projectTools";
+import { designBom, effectiveScale, mergeDesignBom } from "./lib/designBom";
+import { deviceType } from "./lib/deviceCatalog";
 import { initializePersistence } from "./lib/persistence";
+import {
+  moveDesignToDrawing,
+  removeDrawingFromDesign,
+  type PlanDesign,
+  type PlanItem,
+} from "./lib/planDesign";
 import {
   activeDrawing,
   newDrawing,
@@ -36,6 +45,7 @@ import {
 } from "./lib/projectFile";
 import {
   askUnsavedChanges,
+  askYesNo,
   DRAWING_FILTER,
   pickAndReadFile,
   PROJECT_FILTER,
@@ -52,6 +62,12 @@ import {
   withRecent,
   type RecentProject,
 } from "./lib/recents";
+import {
+  fitRunToPlan,
+  linkedPlanItemIds,
+  qtlRunForPlanItem,
+  qtlRunFromPlanLine,
+} from "./lib/qtlBridge";
 import { clearRecovery, loadRecovery, saveRecovery } from "./lib/recovery";
 import { useTheme, type ThemePreference } from "./lib/theme";
 
@@ -77,9 +93,21 @@ const PROJECT_TOOLS: Array<{ id: ProjectTool; label: string }> = [
   { id: "video", label: "Video Chain" },
   { id: "cabling", label: "Cabling" },
   { id: "budget", label: "Budget" },
+  { id: "schedule", label: "Device Schedule" },
   { id: "library", label: "Library" },
   { id: "validate", label: "Validate" },
 ];
+
+function isTypingTarget(target: EventTarget | null) {
+  const element = target as HTMLElement | null;
+  return Boolean(
+    element &&
+      (element.tagName === "INPUT" ||
+        element.tagName === "TEXTAREA" ||
+        element.tagName === "SELECT" ||
+        element.isContentEditable),
+  );
+}
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -194,6 +222,14 @@ function Workspace({ initial }: { initial: Session }) {
   const [activeSystem, setActiveSystem] = useState<SystemName>("Lighting");
   const [inspectorView, setInspectorView] = useState<InspectorView>("system");
   const [activeTool, setActiveTool] = useState<ProjectTool | null>(null);
+  const activeToolRef = useRef(activeTool);
+  activeToolRef.current = activeTool;
+
+  /** Shows the plan and asks the viewer for an editor tool. */
+  const requestPlanTool = useCallback((tool: "design" | "measure") => {
+    setActiveTool(null);
+    window.dispatchEvent(new CustomEvent("avsw:plan-tool", { detail: tool }));
+  }, []);
 
   useEffect(() => {
     void initializePersistence().catch((error: unknown) => {
@@ -323,18 +359,82 @@ function Workspace({ initial }: { initial: Session }) {
     [confirmLeave, forgetRecent, rememberRecent],
   );
 
+  // Design undo history (plan edits only). Cleared when the project or drawing changes.
+  const designHistory = useRef({ past: [] as PlanDesign[], future: [] as PlanDesign[], lastKey: "", lastAt: 0 });
+  const resetDesignHistory = useCallback(() => {
+    designHistory.current = { past: [], future: [], lastKey: "", lastAt: 0 };
+  }, []);
+  useEffect(resetDesignHistory, [project.id, resetDesignHistory]);
+
+  const changeDesign = useCallback(
+    (next: PlanDesign, change: DesignChange = {}) => {
+      const history = designHistory.current;
+      if (!change.live) {
+        const now = Date.now();
+        const sameEdit = Boolean(change.coalesce) && change.coalesce === history.lastKey && now - history.lastAt < 1500;
+        if (!sameEdit) {
+          history.past.push(sessionRef.current.project.design);
+          if (history.past.length > 200) history.past.shift();
+        }
+        history.future = [];
+        history.lastKey = change.coalesce ?? "";
+        history.lastAt = now;
+      }
+      updateProject({ design: next });
+    },
+    [updateProject],
+  );
+
+  const stepDesign = useCallback(
+    (direction: "undo" | "redo") => {
+      const history = designHistory.current;
+      const target = direction === "undo" ? history.past.pop() : history.future.pop();
+      if (!target) return;
+      (direction === "undo" ? history.future : history.past).push(sessionRef.current.project.design);
+      history.lastKey = "";
+      updateProject({ design: target });
+    },
+    [updateProject],
+  );
+
   const openDrawingCommand = useCallback(async () => {
     try {
       const file = await pickAndReadFile(DRAWING_FILTER);
       if (!file) return;
       const drawing = newDrawing(file.name, file.bytes);
+      const current = sessionRef.current.project;
+      let design = current.design;
+      const previous = activeDrawing(current);
+      if (previous) {
+        const placed = design.items.filter((item) => item.drawingId === previous.id).length;
+        let keep = false;
+        if (placed > 0 && previous.kind === drawing.kind) {
+          keep = await askYesNo(
+            `Keep the ${placed} devices and runs from the previous drawing on ${file.name}? Keep them when this is a new revision of the same plan.`,
+            "Keep them",
+            "Remove them",
+          );
+        } else if (placed > 0) {
+          // PDF points and DXF units don't line up, so positions can't be carried over.
+          const proceed = await askYesNo(
+            `The ${placed} devices and runs on ${previous.name} can't be moved onto a ${drawing.kind.toUpperCase()} drawing automatically, because the two drawing types use different coordinates. Remove them and open ${file.name}?`,
+            "Remove and continue",
+            "Cancel",
+          );
+          if (!proceed) return;
+        }
+        design = keep
+          ? moveDesignToDrawing(design, previous.id, drawing.id)
+          : removeDrawingFromDesign(design, previous.id);
+      }
       setActiveTool(null);
+      resetDesignHistory();
       // One drawing per project for now: a new drawing replaces the previous one.
-      updateProject({ drawings: [drawing], activeDrawingId: drawing.id, draft: [] });
+      updateProject({ drawings: [drawing], activeDrawingId: drawing.id, draft: [], design });
     } catch (error) {
       await showError(`The drawing could not be opened.\n\n${errorText(error)}`);
     }
-  }, [updateProject]);
+  }, [resetDesignHistory, updateProject]);
 
   // Keyboard shortcuts (also shown in the File menu).
   useEffect(() => {
@@ -350,11 +450,15 @@ function Workspace({ initial }: { initial: Session }) {
       } else if (key === "n" && !event.shiftKey) {
         event.preventDefault();
         void newProjectCommand();
+      } else if ((key === "z" || key === "y") && !activeToolRef.current && !isTypingTarget(event.target)) {
+        // Plan undo/redo; text fields keep their own undo.
+        event.preventDefault();
+        stepDesign(key === "y" || event.shiftKey ? "redo" : "undo");
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [newProjectCommand, openProjectCommand, save]);
+  }, [newProjectCommand, openProjectCommand, save, stepDesign]);
 
   // Ask before closing with unsaved changes.
   useEffect(() => {
@@ -416,6 +520,66 @@ function Workspace({ initial }: { initial: Session }) {
     [analysis, draft, projectMode],
   );
 
+  // Scale per sheet; DXF units are only known for the drawing currently parsed.
+  const dxfUnits = analysis?.units ?? null;
+  const scaleOf = useCallback(
+    (item: PlanItem) =>
+      effectiveScale(
+        project.design,
+        item.drawingId,
+        item.page,
+        item.drawingId === project.activeDrawingId ? dxfUnits : null,
+      ),
+    [project.design, project.activeDrawingId, dxfUnits],
+  );
+  // Linear lines linked to a QTL run are priced by QTL Studio, not twice.
+  const qtlLinked = useMemo(
+    () => linkedPlanItemIds(projectTools.qtlRuns, project.design),
+    [projectTools.qtlRuns, project.design],
+  );
+  const planBom = useMemo(
+    () => designBom(project.design, scaleOf, qtlLinked),
+    [project.design, scaleOf, qtlLinked],
+  );
+
+  const [qtlFocusId, setQtlFocusId] = useState<string | null>(null);
+  const clearQtlFocus = useCallback(() => setQtlFocusId(null), []);
+  const showOnPlan = useCallback((planItemId: string) => {
+    setActiveTool(null);
+    window.dispatchEvent(new CustomEvent("avsw:plan-select", { detail: planItemId }));
+  }, []);
+
+  const planItemActions = useCallback(
+    (item: PlanItem, lengthFt: number | null) => {
+      if (item.kind !== "run" || deviceType(item.typeId)?.measures !== "linear-light") return null;
+      const run = qtlRunForPlanItem(projectTools.qtlRuns, item.id);
+      const updateRuns = (qtlRuns: typeof projectTools.qtlRuns) => setProjectTools({ ...projectTools, qtlRuns });
+      return (
+        <QtlLinkActions
+          lengthFt={lengthFt}
+          run={run}
+          onCreate={() => {
+            if (lengthFt !== null) updateRuns([...projectTools.qtlRuns, qtlRunFromPlanLine(item, lengthFt)]);
+          }}
+          onOpen={() => {
+            if (!run) return;
+            setQtlFocusId(run.id);
+            setActiveTool("qtl");
+          }}
+          onUsePlanLength={() => {
+            if (!run || lengthFt === null) return;
+            updateRuns(
+              projectTools.qtlRuns.map((candidate) =>
+                candidate.id === run.id ? { ...candidate, ...fitRunToPlan(candidate, lengthFt) } : candidate,
+              ),
+            );
+          }}
+        />
+      );
+    },
+    [projectTools, setProjectTools],
+  );
+
   const bom = useMemo(() => {
     const scopedBase =
       projectMode === "retrofit"
@@ -423,10 +587,10 @@ function Workspace({ initial }: { initial: Session }) {
         : baseBom;
 
     return [
-      ...scopedBase,
+      ...mergeDesignBom(scopedBase, planBom),
       ...generateToolBom(projectTools, projectMode),
     ];
-  }, [baseBom, projectMode, retrofitSurvey, projectTools]);
+  }, [baseBom, planBom, projectMode, retrofitSurvey, projectTools]);
 
   const issues = useMemo(
     () =>
@@ -601,9 +765,13 @@ function Workspace({ initial }: { initial: Session }) {
             <button onClick={() => void openDrawingCommand()}>
               {drawing ? "Replace Drawing" : "Open Drawing"}
             </button>
-            <button disabled>Measure</button>
+            <button disabled={!drawing} onClick={() => requestPlanTool("design")}>
+              Place Device
+            </button>
+            <button disabled={!drawing} onClick={() => requestPlanTool("measure")}>
+              Measure
+            </button>
             <button disabled>Draw Room</button>
-            <button disabled>Place Device</button>
           </div>
 
           <div className="sidebar-section">
@@ -632,6 +800,11 @@ function Workspace({ initial }: { initial: Session }) {
             bom={bom}
             mode={projectMode}
             survey={retrofitSurvey}
+            design={project.design}
+            scaleOf={scaleOf}
+            qtlFocusId={qtlFocusId}
+            onQtlFocusHandled={clearQtlFocus}
+            onShowOnPlan={showOnPlan}
           />
         )}
 
@@ -639,6 +812,10 @@ function Workspace({ initial }: { initial: Session }) {
             loaded drawing is not re-parsed when the tool closes. */}
         <DrawingViewer
           drawing={drawing}
+          design={project.design}
+          active={!activeTool}
+          onDesignChange={changeDesign}
+          itemActions={planItemActions}
           onOpenDrawing={() => void openDrawingCommand()}
           onAnalysisChange={setAnalysis}
           onDraftChange={setDraft}

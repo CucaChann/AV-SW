@@ -5,6 +5,13 @@ type Props = {
   drawing: ParsedDxfDrawing;
 };
 
+const BASELINES = {
+  alphabetic: "alphabetic",
+  bottom: "text-after-edge",
+  middle: "central",
+  top: "hanging",
+} as const;
+
 function layerColor(layer: string) {
   const value = layer.toLowerCase();
 
@@ -126,15 +133,21 @@ export default function DxfCanvas({ drawing }: Props) {
         primitive.height || Math.max(bounds.width, bounds.height) / 250,
         Math.max(bounds.width, bounds.height) / 700,
       );
+      const tx = x(primitive.position.x);
+      const ty = y(primitive.position.y);
 
       return (
         <text
           key={index}
-          x={x(primitive.position.x)}
-          y={y(primitive.position.y)}
+          x={tx}
+          y={ty}
           fill="var(--dxf-text)"
           fontSize={fontSize}
           fontFamily="Arial, sans-serif"
+          textAnchor={primitive.anchor ?? "start"}
+          dominantBaseline={BASELINES[primitive.baseline ?? "alphabetic"]}
+          // Drawing y points up, SVG y points down, so a CCW angle becomes negative.
+          transform={primitive.rotation ? `rotate(${-primitive.rotation} ${tx} ${ty})` : undefined}
         >
           {primitive.text}
         </text>

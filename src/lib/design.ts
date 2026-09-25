@@ -154,6 +154,23 @@ export const SYSTEMS: SystemDefinition[] = [
     ],
   },
   {
+    name: "Control",
+    summary:
+      "Whole-home control platform, touch panels, remotes, iPad docks, thermostats and third-party integration.",
+    manufacturers: ["Savant", "IPORT", "Lutron"],
+    firstActions: [
+      "Confirm the control platform and which systems it integrates (lighting, shades, AV, climate, security).",
+      "Place touch panels, iPad docks and remotes where the client actually uses them.",
+      "Plan the control host / processor location with network and power.",
+      "List every device that needs IP, IR, RS-232 or relay control.",
+    ],
+    retrofitFocus: [
+      "Identify the existing control platform, host and software version.",
+      "Check which existing devices can stay integrated after the upgrade.",
+      "Reuse touch panel and keypad locations where backboxes and wiring are suitable.",
+    ],
+  },
+  {
     name: "Infrastructure",
     summary:
       "Rack, pathways, cable types, power, UPS, backboxes, conduit, and cross-system coordination.",

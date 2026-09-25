@@ -29,6 +29,19 @@ Each project is one `.avsw` file, like a CAD file: **File → Save** (Ctrl+S) as
 
 Unsaved work is also kept in a recovery copy, so AV-SW reopens where you left off after a crash or forced shutdown.
 
+## Designing on the floor plan
+
+Open a PDF or DXF drawing, then click **Design** in the drawing toolbar (or **Place Device** in the sidebar).
+
+- **Layers.** Lighting, Lighting Control, Shades, Audio, Video, Network, Control & Touch Panels and Cabling share the same drawing. Each layer can be hidden or locked.
+- **Placing.** Pick a device from the layer's palette and click the drawing. Lines (linear lighting, shades, cable runs, conduit) are drawn point by point: double-click or press Enter to finish, and hold Shift to keep them straight.
+- **Editing.** Click an item to edit its tag, room, brand, model and notes. Drag it to move it, press R to rotate, Delete to remove. Ctrl+Z / Ctrl+Y undo and redo.
+- **Scale.** DXF drawings use their own units. For a PDF, choose an architectural scale or calibrate from a known dimension in the **Scale** menu. **Measure** (M) reads real distances.
+- **Outputs.** **Device Schedule** lists everything by layer (click a tag to find it on the plan) and exports CSV. Placed devices go into the BOM and replace the matching preliminary lines.
+- **QTL.** Select a linear LED line and choose **Create QTL run** to send its measured length and room to QTL Studio. The studio shows which plan line each run came from, warns when the lengths no longer match, and can split a fixture that is longer than the product's catalog maximum.
+
+Designs are saved in the `.avsw` project file.
+
 ## Free development prerequisites
 
 ### Required for browser development
@@ -106,6 +119,12 @@ Desktop program:
 - recovery copy of the open project
 - PDF and DXF drawings stored inside the project
 - browser mode kept for development (Save downloads the `.avsw` file)
+
+Floor plan design:
+- design layers with devices and drawn runs on PDF and DXF drawings
+- sheet scales, calibration and measuring
+- device schedule and BOM lines from the plan
+- linear LED lines linked to QTL Studio runs
 
 
 ## DXF test
