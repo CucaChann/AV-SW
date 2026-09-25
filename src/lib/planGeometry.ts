@@ -105,6 +105,24 @@ export function similarityFromPairs(pairs: PointPair[]): Similarity | null {
   };
 }
 
+/**
+ * Like similarityFromPairs but without scaling: the turn comes from the two
+ * pairs' directions and the move lines up their midpoints, so click error is
+ * shared between the pairs instead of becoming a scale change.
+ */
+export function rigidFromPairs(pairs: PointPair[]): Similarity | null {
+  if (pairs.length < 2) return similarityFromPairs(pairs);
+  const [first, second] = pairs;
+  const fromAngle = Math.atan2(second.from.y - first.from.y, second.from.x - first.from.x);
+  const toAngle = Math.atan2(second.to.y - first.to.y, second.to.x - first.to.x);
+  if (Math.hypot(second.from.x - first.from.x, second.from.y - first.from.y) < 1e-9) return null;
+  const a = Math.cos(toAngle - fromAngle);
+  const b = Math.sin(toAngle - fromAngle);
+  const from = { x: (first.from.x + second.from.x) / 2, y: (first.from.y + second.from.y) / 2 };
+  const to = { x: (first.to.x + second.to.x) / 2, y: (first.to.y + second.to.y) / 2 };
+  return { a, b, tx: to.x - (a * from.x - b * from.y), ty: to.y - (b * from.x + a * from.y) };
+}
+
 export function applySimilarity(t: Similarity, point: PlanPoint): PlanPoint {
   return { x: t.a * point.x - t.b * point.y + t.tx, y: t.b * point.x + t.a * point.y + t.ty };
 }
@@ -116,4 +134,28 @@ export function similarityScale(t: Similarity) {
 /** Counter-clockwise angle in the drawing's own axes, in degrees. */
 export function similarityAngleDeg(t: Similarity) {
   return (Math.atan2(t.b, t.a) * 180) / Math.PI;
+}
+
+/** Zoom and pan that fit a stage-space rectangle into a viewport, with padding. */
+export function fitRect(
+  rect: { minX: number; minY: number; maxX: number; maxY: number },
+  viewport: { width: number; height: number },
+  padding = 48,
+  limits = { min: 0, max: 4 },
+) {
+  const width = Math.max(rect.maxX - rect.minX, 1e-9);
+  const height = Math.max(rect.maxY - rect.minY, 1e-9);
+  const fitting = Math.min(
+    Math.max(viewport.width - padding, 1) / width,
+    Math.max(viewport.height - padding, 1) / height,
+  );
+  // Clamp before panning so the rectangle stays centred at the clamped zoom.
+  const zoom = Math.max(limits.min, Math.min(limits.max, fitting));
+  return {
+    zoom,
+    pan: {
+      x: (viewport.width - width * zoom) / 2 - rect.minX * zoom,
+      y: (viewport.height - height * zoom) / 2 - rect.minY * zoom,
+    },
+  };
 }

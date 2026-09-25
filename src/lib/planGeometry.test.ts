@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   applySimilarity,
   dxfSheet,
+  fitRect,
   panForZoom,
   panToCenter,
   pdfSheet,
+  rigidFromPairs,
   similarityAngleDeg,
   similarityFromPairs,
   similarityScale,
@@ -88,5 +90,48 @@ describe("similarityFromPairs", () => {
         { from: { x: 5, y: 5 }, to: { x: 9, y: 9 } },
       ]),
     ).toBeNull();
+  });
+});
+
+describe("fitRect", () => {
+  it("centres the rectangle and keeps it inside the padded viewport", () => {
+    const rect = { minX: -400, minY: 100, maxX: 600, maxY: 600 };
+    const { zoom, pan } = fitRect(rect, { width: 1048, height: 800 });
+    expect(zoom).toBeCloseTo(1);
+    const left = rect.minX * zoom + pan.x;
+    const right = rect.maxX * zoom + pan.x;
+    expect(left).toBeCloseTo(24);
+    expect(right).toBeCloseTo(1024);
+    expect((rect.minY * zoom + pan.y + rect.maxY * zoom + pan.y) / 2).toBeCloseTo(400);
+  });
+
+  it("stays centred when the zoom is clamped", () => {
+    const rect = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+    const { zoom, pan } = fitRect(rect, { width: 1000, height: 800 }, 48, { min: 0.05, max: 4 });
+    expect(zoom).toBe(4);
+    expect(5 * zoom + pan.x).toBeCloseTo(500);
+    expect(5 * zoom + pan.y).toBeCloseTo(400);
+  });
+});
+
+describe("rigidFromPairs", () => {
+  it("turns and moves without scaling, splitting click error between the pairs", () => {
+    // The second target is 1% too far out, as a slightly-off click would be.
+    const pairs = [
+      { from: { x: 0, y: 0 }, to: { x: 100, y: 50 } },
+      { from: { x: 100, y: 0 }, to: { x: 100, y: 151 } },
+    ];
+    const t = rigidFromPairs(pairs)!;
+    expect(similarityScale(t)).toBeCloseTo(1, 12);
+    expect(similarityAngleDeg(t)).toBeCloseTo(90);
+    const first = applySimilarity(t, pairs[0].from);
+    const second = applySimilarity(t, pairs[1].from);
+    expect(first.y).toBeCloseTo(50.5);
+    expect(second.y).toBeCloseTo(150.5);
+  });
+
+  it("is a plain move for one pair", () => {
+    const t = rigidFromPairs([{ from: { x: 1, y: 1 }, to: { x: 3, y: 4 } }])!;
+    expect(applySimilarity(t, { x: 0, y: 0 })).toEqual({ x: 2, y: 3 });
   });
 });

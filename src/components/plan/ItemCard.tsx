@@ -14,6 +14,8 @@ type Props = {
   onClose: () => void;
   /** Extra actions for this item (e.g. linking a linear run to QTL Studio). */
   actions?: React.ReactNode;
+  /** Shown when the item's sheet hasn't been checked against a revised drawing. */
+  alignmentNote?: string;
 };
 
 const OTHER = "__other__";
@@ -29,6 +31,7 @@ export default function ItemCard({
   onDelete,
   onClose,
   actions,
+  alignmentNote,
 }: Props) {
   const type = deviceType(item.typeId);
   const [customBrand, setCustomBrand] = useState(
@@ -49,6 +52,8 @@ export default function ItemCard({
           ×
         </button>
       </header>
+
+      {alignmentNote && <p className="item-card-warning">⚠ {alignmentNote}</p>}
 
       <fieldset disabled={locked}>
         <label className="field">

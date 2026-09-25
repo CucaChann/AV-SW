@@ -1,6 +1,13 @@
 import { deviceType, LAYER_DEFINITIONS } from "../../lib/deviceCatalog";
 import type { ScaleLookup } from "../../lib/designBom";
-import { formatFeet, layerOf, runLengthFt, type PlanDesign, type PlanItem } from "../../lib/planDesign";
+import {
+  formatFeet,
+  layerOf,
+  runLengthFt,
+  unverifiedSheetKeys,
+  type PlanDesign,
+  type PlanItem,
+} from "../../lib/planDesign";
 import { exportCsv } from "../../lib/projectTools";
 
 type Props = {
@@ -27,11 +34,14 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan, onShowItem
   const devices = design.items.filter((item) => item.kind === "device").length;
   const runs = design.items.length - devices;
   const unassigned = design.items.filter((item) => !item.room.trim()).length;
+  const unverified = unverifiedSheetKeys(design);
+  const isUnverified = (item: PlanItem) => unverified.has(`${item.drawingId}:${item.page}`);
+  const unverifiedCount = design.items.filter(isUnverified).length;
   const noModel = design.items.filter((item) => !item.model.trim()).length;
 
   const exportSchedule = () =>
     exportCsv("avsw-device-schedule.csv", [
-      ["Layer", "Tag", "Type", "Room", "Brand", "Model", "Length / width", "Cable", "Notes"],
+      ["Layer", "Tag", "Type", "Room", "Brand", "Model", "Length / width", "Cable", "Alignment", "Notes"],
       ...sections.flatMap(({ layer, items }) =>
         items.map((item) => [
           layer.name,
@@ -42,6 +52,7 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan, onShowItem
           item.model,
           lengthOf(item),
           deviceType(item.typeId)?.measures === "cable" ? `${item.quantity} × ${item.cableType}` : "",
+          isUnverified(item) ? "Not verified" : "",
           item.notes,
         ]),
       ),
@@ -68,7 +79,21 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan, onShowItem
         <article><span>Runs</span><strong>{runs}</strong></article>
         <article><span>No room assigned</span><strong>{unassigned}</strong></article>
         <article><span>No model selected</span><strong>{noModel}</strong></article>
+        {unverifiedCount > 0 && (
+          <article className="attention">
+            <span>Alignment not verified</span>
+            <strong>{unverifiedCount}</strong>
+          </article>
+        )}
       </div>
+
+      {unverifiedCount > 0 && (
+        <p className="attention-text">
+          ⚠ {unverifiedCount} item{unverifiedCount === 1 ? " was" : "s were"} carried over from a replaced drawing and
+          {unverifiedCount === 1 ? " hasn't" : " haven't"} been checked against the new one. Open the plan to align or confirm
+          them; until then their rooms and lengths may be off.
+        </p>
+      )}
 
       {sections.length === 0 && (
         <section className="builder-card">
@@ -100,11 +125,16 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan, onShowItem
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.id} className={isUnverified(item) ? "unverified" : ""}>
                   <td>
                     <button className="schedule-tag" onClick={() => onShowItem(item.id)} title="Show on plan">
                       {item.tag || "—"}
                     </button>
+                    {isUnverified(item) && (
+                      <span className="schedule-flag" title="Alignment with the revised drawing isn't verified">
+                        ⚠
+                      </span>
+                    )}
                   </td>
                   <td>{deviceType(item.typeId)?.name}</td>
                   <td className={item.room.trim() ? "" : "muted"}>{item.room || "—"}</td>
