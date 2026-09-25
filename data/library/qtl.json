@@ -63,6 +63,15 @@
       "title": "Voltage Drop Calculator",
       "publisher": "qtl",
       "url": "https://www.qtl.lighting/voltage-drop-calculator/"
+    },
+    {
+      "id": "qtl-kurv-tunable-ordering",
+      "kind": "spec-sheet",
+      "title": "Q-CAP KURV for Tunable Applications - Master Ordering Guide Set",
+      "publisher": "qtl",
+      "url": "https://beta.qtl.lighting/Customer-Content/www/products/Files/q-cap-kurv-master-ordering-guide-set-tunable-applications-408.pdf",
+      "documentRevision": "Rev-12-19-24",
+      "notes": "Official QTL ordering guide. It distinguishes Exact vs Optimal length selection; Optimal relies on fixture-length charts not yet encoded in AV-SW."
     }
   ],
   "families": [
@@ -212,8 +221,7 @@
         },
         "dimming.methods": {
           "value": [
-            "forward-phase",
-            "reverse-phase",
+            "phase",
             "0-10v"
           ],
           "source": {
@@ -500,6 +508,41 @@
         "proposedBy": "chatgpt",
         "proposedOn": "2026-09-25",
         "notes": "QTL calls 3% a reasonable default for most residential/general commercial work. This rule does not invent wire resistance; predicted wire length remains a separate sourced calculation."
+      }
+    },
+    {
+      "id": "qtl-kurv-tunable-ordering",
+      "kind": "linear-ordering",
+      "title": "Q-CAP KURV tunable fixture ordering",
+      "description": "Checks the published 12–191 in range and 2 in increment for tunable KURV, while preserving QTL's Exact vs Optimal distinction.",
+      "severity": "error",
+      "load": {
+        "familyId": "qtl-qcap-kurv"
+      },
+      "params": {
+        "variants": [
+          {
+            "variant": "dynamic-white-tunable",
+            "minLengthIn": 12,
+            "maxLengthIn": 191,
+            "lengthIncrementIn": 2,
+            "lengthModes": [
+              "exact",
+              "optimal"
+            ],
+            "optimalRequiresChart": true
+          }
+        ]
+      },
+      "source": {
+        "sourceId": "qtl-kurv-tunable-ordering",
+        "locator": "A11 LENGTH (IN) / A12 EXACT/OPTIMAL"
+      },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "chatgpt",
+        "proposedOn": "2026-09-25",
+        "notes": "Exact fixtures are specified by requested length within the published tolerance. Optimal lengths are rounded down using QTL's Exact/Optimal Fixture Length charts; those charts are not yet encoded, so AV-SW must not calculate Optimal lengths yet."
       }
     }
   ]
