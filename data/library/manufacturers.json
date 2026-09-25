@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "manufacturers": [
+    {
+      "id": "lutron",
+      "name": "Lutron Electronics",
+      "brands": ["Lutron", "Ketra"],
+      "website": "https://www.lutron.com"
+    },
+    {
+      "id": "dmf",
+      "name": "DMF Lighting",
+      "brands": ["DMF"],
+      "website": "https://www.dmflighting.com"
+    },
+    {
+      "id": "savant",
+      "name": "Savant Systems",
+      "brands": ["Savant"],
+      "website": "https://www.savant.com"
+    }
+  ]
+}

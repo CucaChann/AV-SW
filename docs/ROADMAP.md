@@ -41,7 +41,7 @@
 - Persist design objects in SQLite
 
 ## V0.3 — Structured design data
-- Product library
+- Product library (v1 schema, validator and review workflow started; see `docs/PRODUCT-LIBRARY.md`)
 - Product-to-symbol relationships
 - Automatic schedules
 - BOM generation

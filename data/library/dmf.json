@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "dmf-next-generation-dimming",
+      "kind": "manufacturer-web",
+      "title": "Next Generation Dimming",
+      "publisher": "dmf",
+      "url": "https://www.dmflighting.com/next-generation-dimming/",
+      "notes": "Claims below were captured in a claude.ai research session and have not been re-read by a person. The AV-SW build environment could not reach dmflighting.com."
+    },
+    {
+      "id": "dmf-resources",
+      "kind": "manufacturer-web",
+      "title": "DMF resources library",
+      "publisher": "dmf",
+      "url": "https://www.dmflighting.com/resources/"
+    }
+  ],
+  "families": [
+    {
+      "id": "dmf-drd2",
+      "manufacturerId": "dmf",
+      "name": "DRD2 downlight system",
+      "category": "lighting.downlight",
+      "description": "Modular recessed downlight system. Input power varies by lumen package, so it belongs on each product record, taken from the DRD2 spec sheet.",
+      "source": { "sourceId": "dmf-resources" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "No model records yet."
+      }
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "dmf-drd2-with-lutron-dimming",
+      "a": { "familyId": "dmf-drd2" },
+      "b": { "manufacturerId": "lutron" },
+      "relation": "conditional",
+      "conditions": [
+        "Confirm the specific Lutron dimmer or module against DMF's current compatibility documentation."
+      ],
+      "ruleIds": ["dmf-dimmer-led-derating"],
+      "source": { "sourceId": "dmf-next-generation-dimming" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "Research session summary: DMF says DRD modules perform well with dimming panels from Lutron, Crestron, Savant and Control4. Verify the wording on the page."
+      }
+    },
+    {
+      "id": "dmf-drd2-with-savant-dimming",
+      "a": { "familyId": "dmf-drd2" },
+      "b": { "manufacturerId": "savant" },
+      "relation": "conditional",
+      "conditions": [
+        "Confirm the specific Savant dimmer or module against DMF's current compatibility documentation."
+      ],
+      "ruleIds": ["dmf-dimmer-led-derating"],
+      "source": { "sourceId": "dmf-next-generation-dimming" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "Same source claim as dmf-drd2-with-lutron-dimming. Verify the wording on the page."
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "dmf-dimmer-led-derating",
+      "kind": "dimmer-led-capacity",
+      "title": "Hold dimmers without a published LED rating to 50%",
+      "description": "DMF guidance: a dimmer with no published LED rating should carry no more than half of its rated load when driving DRD modules.",
+      "severity": "error",
+      "load": { "familyId": "dmf-drd2" },
+      "params": { "deratingWithoutLedRating": 0.5 },
+      "source": { "sourceId": "dmf-next-generation-dimming" },
+      "review": {
+        "status": "proposed",
+        "proposedBy": "claude",
+        "proposedOn": "2026-09-25",
+        "notes": "Captured in a claude.ai research session. Verify the 50% figure and its wording on the page before approving."
+      }
+    }
+  ]
+}
