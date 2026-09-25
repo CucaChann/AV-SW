@@ -16,8 +16,59 @@ export type DxfPrimitive =
   | { kind: "polyline"; layer: string; points: Point2D[]; closed: boolean }
   | { kind: "circle"; layer: string; center: Point2D; radius: number }
   | { kind: "arc"; layer: string; center: Point2D; radius: number; startAngle: number; endAngle: number }
-  | { kind: "text"; layer: string; position: Point2D; text: string; height?: number }
+  | {
+      kind: "text";
+      layer: string;
+      /** The point the text is aligned to (see anchor/baseline). */
+      position: Point2D;
+      text: string;
+      height?: number;
+      anchor?: TextAnchor;
+      baseline?: TextBaseline;
+      /** Degrees, counter-clockwise in drawing coordinates. */
+      rotation?: number;
+    }
   | { kind: "insert"; layer: string; position: Point2D; name: string };
+
+export type TextAnchor = "start" | "middle" | "end";
+export type TextBaseline = "alphabetic" | "bottom" | "middle" | "top";
+
+/**
+ * Where TEXT/MTEXT sits relative to its alignment point. TEXT uses group 72/73
+ * (and the second alignment point, group 11, when either is non-zero); MTEXT
+ * uses its attachment point (group 71, 1-9 = top-left .. bottom-right).
+ */
+export function textPlacement(entity: Record<string, unknown>, type: string) {
+  if (type === "MTEXT") {
+    const attachment = Number(entity.attachmentPoint);
+    const index = Number.isInteger(attachment) && attachment >= 1 && attachment <= 9 ? attachment - 1 : 0;
+    const anchors: TextAnchor[] = ["start", "middle", "end"];
+    const rows: TextBaseline[] = ["top", "middle", "bottom"];
+    const radians = Number(entity.rotation);
+    return {
+      position: finitePoint(entity.position),
+      anchor: anchors[index % 3],
+      baseline: rows[Math.floor(index / 3)],
+      // MTEXT stores rotation in radians.
+      rotation: Number.isFinite(radians) ? (radians * 180) / Math.PI : 0,
+    };
+  }
+
+  const halign = Number(entity.halign) || 0;
+  const valign = Number(entity.valign) || 0;
+  const aligned = halign !== 0 || valign !== 0;
+  const anchor: TextAnchor = halign === 1 || halign === 4 ? "middle" : halign === 2 ? "end" : "start";
+  const baseline: TextBaseline =
+    halign === 4 || valign === 2 ? "middle" : valign === 3 ? "top" : valign === 1 ? "bottom" : "alphabetic";
+  const degrees = Number(entity.rotation);
+  return {
+    position: finitePoint(aligned ? (entity.endPoint ?? entity.startPoint) : entity.startPoint) ??
+      finitePoint(entity.position),
+    anchor,
+    baseline,
+    rotation: Number.isFinite(degrees) ? degrees : 0,
+  };
+}
 
 export type RoomCandidate = {
   label: string;
@@ -458,7 +509,7 @@ export function parseDxf(text: string): ParsedDxfDrawing {
     }
 
     if (type === "TEXT" || type === "MTEXT") {
-      const position = finitePoint(entity.startPoint ?? entity.position);
+      const { position, anchor, baseline, rotation } = textPlacement(entity, type);
       const textValue = cleanText(entity.text ?? entity.string ?? entity.value);
       if (position && textValue) {
         primitives.push({
@@ -469,6 +520,9 @@ export function parseDxf(text: string): ParsedDxfDrawing {
           height: Number.isFinite(Number(entity.textHeight))
             ? Number(entity.textHeight)
             : undefined,
+          anchor,
+          baseline,
+          rotation,
         });
         textCount += 1;
 
