@@ -4,7 +4,13 @@ import {
   type LayerKey,
 } from "./deviceCatalog";
 import type { RoomCandidate } from "./dxf";
-import { applySimilarity, similarityAngleDeg, similarityScale, type Similarity } from "./planGeometry";
+import {
+  applySimilarity,
+  similarityAngleDeg,
+  similarityScale,
+  usableAlignment,
+  type Similarity,
+} from "./planGeometry";
 import { isRecord, withDefaults } from "./sanitize";
 
 /**
@@ -487,6 +493,8 @@ export function alignSheet(
   transform: Similarity,
   yUp: boolean,
 ): PlanDesign {
+  // Never collapse a sheet or zero its scale: an unusable transform changes nothing.
+  if (!usableAlignment(transform)) return design;
   const onSheet = (entry: { drawingId: string; page: number }) => entry.drawingId === drawingId && entry.page === page;
   // Device rotation is counter-clockwise on screen; in y-down coordinates the
   // transform's angle turns the other way.

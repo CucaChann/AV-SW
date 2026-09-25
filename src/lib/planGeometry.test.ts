@@ -11,6 +11,7 @@ import {
   similarityFromPairs,
   similarityScale,
   snapAngle,
+  usableAlignment,
 } from "./planGeometry";
 
 describe("sheet geometry", () => {
@@ -133,5 +134,39 @@ describe("rigidFromPairs", () => {
   it("is a plain move for one pair", () => {
     const t = rigidFromPairs([{ from: { x: 1, y: 1 }, to: { x: 3, y: 4 } }])!;
     expect(applySimilarity(t, { x: 0, y: 0 })).toEqual({ x: 2, y: 3 });
+  });
+});
+
+describe("degenerate alignments", () => {
+  const apart = { x: 0, y: 0 };
+  const other = { x: 100, y: 0 };
+
+  it("refuses two targets on the same spot, with or without scaling", () => {
+    const pairs = [
+      { from: apart, to: { x: 50, y: 50 } },
+      { from: other, to: { x: 50, y: 50 } },
+    ];
+    expect(similarityFromPairs(pairs)).toBeNull();
+    expect(rigidFromPairs(pairs)).toBeNull();
+    // Nearly on the same spot is just as meaningless.
+    const nearly = [pairs[0], { from: other, to: { x: 50 + 1e-5, y: 50 } }];
+    expect(similarityFromPairs(nearly)).toBeNull();
+    expect(rigidFromPairs(nearly)).toBeNull();
+  });
+
+  it("only accepts finite transforms within the scale limits", () => {
+    expect(usableAlignment(null)).toBe(false);
+    expect(usableAlignment({ a: 0, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 0.05, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 20, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: Number.NaN, b: 0, tx: 0, ty: 0 })).toBe(false);
+    expect(usableAlignment({ a: 0.5, b: 0.5, tx: 10, ty: -4 })).toBe(true);
+    // A small target baseline gives a tiny scale: rejected even though it is a valid transform.
+    const small = similarityFromPairs([
+      { from: apart, to: { x: 50, y: 50 } },
+      { from: other, to: { x: 51, y: 50 } },
+    ]);
+    expect(small).not.toBeNull();
+    expect(usableAlignment(small)).toBe(false);
   });
 });

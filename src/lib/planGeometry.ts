@@ -94,6 +94,8 @@ export function similarityFromPairs(pairs: PointPair[]): Similarity | null {
   const qy = second.to.y - first.to.y;
   const length = px * px + py * py;
   if (length < 1e-18) return null;
+  // Both targets on (nearly) one spot would shrink the sheet to a point.
+  if (qx * qx + qy * qy <= length * 1e-12) return null;
   // (a + bi) = (q2 − q1) / (p2 − p1) as complex numbers.
   const a = (qx * px + qy * py) / length;
   const b = (qy * px - qx * py) / length;
@@ -113,14 +115,30 @@ export function similarityFromPairs(pairs: PointPair[]): Similarity | null {
 export function rigidFromPairs(pairs: PointPair[]): Similarity | null {
   if (pairs.length < 2) return similarityFromPairs(pairs);
   const [first, second] = pairs;
+  const fromLength = Math.hypot(second.from.x - first.from.x, second.from.y - first.from.y);
+  const toLength = Math.hypot(second.to.x - first.to.x, second.to.y - first.to.y);
+  // Coincident points give no direction to turn by.
+  if (fromLength < 1e-9 || toLength <= fromLength * 1e-6) return null;
   const fromAngle = Math.atan2(second.from.y - first.from.y, second.from.x - first.from.x);
   const toAngle = Math.atan2(second.to.y - first.to.y, second.to.x - first.to.x);
-  if (Math.hypot(second.from.x - first.from.x, second.from.y - first.from.y) < 1e-9) return null;
   const a = Math.cos(toAngle - fromAngle);
   const b = Math.sin(toAngle - fromAngle);
   const from = { x: (first.from.x + second.from.x) / 2, y: (first.from.y + second.from.y) / 2 };
   const to = { x: (first.to.x + second.to.x) / 2, y: (first.to.y + second.to.y) / 2 };
   return { a, b, tx: to.x - (a * from.x - b * from.y), ty: to.y - (b * from.x + a * from.y) };
+}
+
+/**
+ * Scale changes an alignment may make. Revisions are re-exported or re-cropped,
+ * not redrawn at a tenth of the size; anything outside this is a mis-click.
+ */
+export const ALIGN_SCALE_LIMITS = { min: 0.1, max: 10 };
+
+/** True when a transform is finite and its scale is within ALIGN_SCALE_LIMITS. */
+export function usableAlignment(t: Similarity | null): t is Similarity {
+  if (!t || ![t.a, t.b, t.tx, t.ty].every(Number.isFinite)) return false;
+  const scale = similarityScale(t);
+  return scale >= ALIGN_SCALE_LIMITS.min && scale <= ALIGN_SCALE_LIMITS.max;
 }
 
 export function applySimilarity(t: Similarity, point: PlanPoint): PlanPoint {

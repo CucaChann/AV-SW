@@ -301,6 +301,13 @@ describe("alignSheet", () => {
     expect(aligned.unverifiedSheets.map((sheet) => sheet.page)).toEqual([2]);
   });
 
+  it("refuses a transform that would collapse the sheet or zero its scale", () => {
+    const collapse = { a: 0, b: 0, tx: 50, ty: 50 };
+    expect(alignSheet(design, "d1", 1, collapse, false)).toBe(design);
+    const infinite = { a: Number.POSITIVE_INFINITY, b: 0, tx: 0, ty: 0 };
+    expect(alignSheet(design, "d1", 1, infinite, false)).toBe(design);
+  });
+
   it("turns devices counter-clockwise on screen in both coordinate systems", () => {
     const dxf = alignSheet(design, "d1", 1, transform, true).items[0];
     const pdf = alignSheet(design, "d1", 1, transform, false).items[0];

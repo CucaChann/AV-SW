@@ -15,6 +15,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import DxfCanvas from "./DxfCanvas";
 import DesignPanel from "./plan/DesignPanel";
+import { reviewMatchesSheet, toolAfterPageChange, type AlignReview, type Tool } from "./plan/editorTools";
 import ItemCard from "./plan/ItemCard";
 import PlanOverlay, { type PlanPreview } from "./plan/PlanOverlay";
 import ScaleMenu from "./plan/ScaleMenu";
@@ -59,6 +60,7 @@ import {
   similarityAngleDeg,
   similarityFromPairs,
   similarityScale,
+  usableAlignment,
   type PointPair,
   type Similarity,
   PDF_RENDER_SCALE,
@@ -78,15 +80,6 @@ const MAX_ZOOM = 8;
 const DRAG_THRESHOLD = 4;
 
 type DrawingKind = "pdf" | "dxf" | null;
-
-type Tool =
-  | { kind: "select" }
-  | { kind: "place"; typeId: string }
-  | { kind: "draw"; typeId: string; points: PlanPoint[] }
-  | { kind: "measure"; points: PlanPoint[] }
-  | { kind: "calibrate"; points: PlanPoint[] }
-  /** Re-register a carried sheet: pairs of (where it is → where it belongs). */
-  | { kind: "align"; pairs: PointPair[]; from: PlanPoint | null };
 
 export type DesignChange = {
   /** Merge consecutive edits with the same key into one undo step (typing). */
@@ -169,8 +162,7 @@ export default function DrawingViewer({
   const [showTags, setShowTags] = useState(true);
   const [cursor, setCursor] = useState<PlanPoint | null>(null);
   const [calibration, setCalibration] = useState<{ points: PlanPoint[]; value: string; error?: string } | null>(null);
-  // keepScale: fit a turn and move only. A DXF's units already fix its scale.
-  const [alignReview, setAlignReview] = useState<{ pairs: PointPair[]; keepScale: boolean } | null>(null);
+  const [alignReview, setAlignReview] = useState<AlignReview | null>(null);
 
   const view = useRef({ pan, zoom });
   view.current = { pan, zoom };
@@ -473,10 +465,12 @@ export default function DrawingViewer({
   function reviewAlignment(pairs: PointPair[]) {
     setTool({ kind: "select" });
     setCursor(null);
-    if (similarityFromPairs(pairs)) setAlignReview({ pairs, keepScale: drawingKind === "dxf" });
+    if (drawingId && similarityFromPairs(pairs)) {
+      setAlignReview({ drawingId, page, pairs, keepScale: drawingKind === "dxf" });
+    }
   }
 
-  function alignmentTransform(review: { pairs: PointPair[]; keepScale: boolean }): Similarity | null {
+  function alignmentTransform(review: AlignReview): Similarity | null {
     return review.keepScale ? rigidFromPairs(review.pairs) : similarityFromPairs(review.pairs);
   }
 
@@ -490,9 +484,14 @@ export default function DrawingViewer({
         return;
       }
       const pairs = [...tool.pairs, { from: tool.from, to: point }];
-      // Two pairs starting at the same spot can't define a turn: keep the first.
+      // Two pairs starting or ending on the same spot can't define a turn: keep the first.
       if (pairs.length === 2 && !similarityFromPairs(pairs)) {
-        setTool({ ...tool, from: null });
+        setTool({
+          kind: "align",
+          pairs: tool.pairs,
+          from: null,
+          note: "Those two pairs start or end on the same spot. Pick the second pair again, well apart from the first.",
+        });
         return;
       }
       if (pairs.length === 2) reviewAlignment(pairs);
@@ -695,6 +694,17 @@ export default function DrawingViewer({
     return () => window.removeEventListener("keydown", listener);
   }, []);
 
+  // Points and alignments picked on one PDF page must not carry over to another.
+  const shownPage = useRef(pageNumber);
+  useEffect(() => {
+    if (shownPage.current === pageNumber) return;
+    shownPage.current = pageNumber;
+    setTool((current) => toolAfterPageChange(current));
+    setCursor(null);
+    setCalibration(null);
+    setAlignReview(null);
+  }, [pageNumber]);
+
   // Sidebar shortcuts ("Place Device", "Measure").
   useEffect(() => {
     const listener = (event: Event) => {
@@ -810,6 +820,7 @@ export default function DrawingViewer({
       return length ? `Measured ${length} · Esc to clear` : "Measure — click points · Esc to clear";
     }
     if (tool.kind === "align") {
+      if (tool.note && !tool.from) return tool.note;
       if (tool.from) return "Align — now click where that point belongs on this drawing";
       return tool.pairs.length === 0
         ? "Align — click a device (or a point) that is out of place · Esc cancels"
@@ -843,8 +854,10 @@ export default function DrawingViewer({
   const status = toolStatus();
   const sheetMark = drawingId ? unverifiedSheet(design, drawingId, page) : undefined;
 
-  function alignmentSummary(review: { pairs: PointPair[]; keepScale: boolean }) {
-    const transform = alignmentTransform(review) ?? { a: 1, b: 0, tx: 0, ty: 0 };
+  function alignmentSummary(review: AlignReview) {
+    const candidate = alignmentTransform(review);
+    const usable = usableAlignment(candidate);
+    const transform = candidate ?? { a: 1, b: 0, tx: 0, ty: 0 };
     const [first] = review.pairs;
     const moved = distance(first.from, applySimilarity(transform, first.from));
     // Report the turn as seen on screen: DXF y grows upward, PDF y downward.
@@ -856,6 +869,7 @@ export default function DrawingViewer({
       factor,
       twoPoint: review.pairs.length === 2,
       large: Math.abs(factor - 1) > 0.02 || Math.abs(turn) > 5,
+      usable,
     };
   }
 
@@ -879,8 +893,14 @@ export default function DrawingViewer({
   }
 
   function applyAlignment() {
-    const transform = alignReview && alignmentTransform(alignReview);
-    if (!transform || !drawingId) return;
+    if (!alignReview || !drawingId) return;
+    // Points picked on another sheet must never move this one.
+    if (!reviewMatchesSheet(alignReview, drawingId, page)) {
+      setAlignReview(null);
+      return;
+    }
+    const transform = alignmentTransform(alignReview);
+    if (!usableAlignment(transform)) return;
     onDesignChange(alignSheet(design, drawingId, page, transform, drawingKind === "dxf"));
     setAlignReview(null);
   }
@@ -1144,16 +1164,24 @@ export default function DrawingViewer({
                   {summary.twoPoint && !alignReview.keepScale ? ", and a calibrated scale is adjusted to match" : ""}.
                   Ctrl+Z undoes it.
                 </p>
-                {summary.large && (
-                  <p className="attention-text">
-                    That's a large turn or scale change. Check that each pair of points marks the same spot.
+                {!summary.usable ? (
+                  <p className="error-text">
+                    These points don't give a usable alignment
+                    {summary.twoPoint ? ` (scale ×${summary.factor.toFixed(3)})` : ""}. Pick targets that match
+                    their devices and are well apart, or cancel and try again.
                   </p>
+                ) : (
+                  summary.large && (
+                    <p className="attention-text">
+                      That's a large turn or scale change. Check that each pair of points marks the same spot.
+                    </p>
+                  )
                 )}
                 <div className="item-card-actions">
                   <button type="button" onClick={() => setAlignReview(null)}>
                     Cancel
                   </button>
-                  <button type="button" className="primary" onClick={applyAlignment}>
+                  <button type="button" className="primary" onClick={applyAlignment} disabled={!summary.usable}>
                     Apply
                   </button>
                 </div>
