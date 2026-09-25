@@ -7,8 +7,10 @@ import {
   newAudioZone,
   newQtlRun,
   qtlPsuMismatches,
+  qtlLengthLimits,
   qtlRunPsuCandidate,
   qtlRunWarnings,
+  qtlSplitForMax,
 } from "./projectTools";
 
 // QZ family wattages in the seeded catalog: 30, 60, 96, 192, 288.
@@ -148,6 +150,49 @@ describe("QTL BOM basis", () => {
     expect(driver?.basis).toContain("60W");
     expect(driver?.basis).toContain(QTL_CATALOG_REVIEW_NOTE);
     expect(driver?.confidence).toBe("Review");
+  });
+});
+
+describe("QTL fixture length limits", () => {
+  // VERS-FLUSH (02) in the seeded catalog: 12" minimum, 98" maximum.
+  const vers = { ...newQtlRun(), room: "Kitchen", productId: "vers-flush-02", maxRunFt: 0 };
+
+  it("uses the catalog limits for a selected product", () => {
+    expect(qtlLengthLimits(vers)).toMatchObject({ maxFt: 98 / 12, minFt: 1 });
+    expect(qtlLengthLimits({ ...newQtlRun(), maxRunFt: 6 })).toMatchObject({ maxFt: 6, minFt: 0, source: "entered" });
+    expect(qtlLengthLimits(newQtlRun()).maxFt).toBe(0);
+  });
+
+  it("splits an over-length fixture into the fewest pieces that fit", () => {
+    const split = qtlSplitForMax({ ...vers, lengthFt: 20, fixtureQty: 1 });
+    expect(split).toEqual({ pieces: 3, fixtureQty: 3, lengthFt: 6.66 });
+    expect(split!.lengthFt * 12).toBeLessThanOrEqual(98);
+    // Every fixture of a multi-fixture run is split.
+    expect(qtlSplitForMax({ ...vers, lengthFt: 10, fixtureQty: 2 })).toEqual({ pieces: 2, fixtureQty: 4, lengthFt: 5 });
+    // Exactly at the limit, or no known limit: nothing to split.
+    expect(qtlSplitForMax({ ...vers, lengthFt: 98 / 12 })).toBeNull();
+    expect(qtlSplitForMax({ ...newQtlRun(), lengthFt: 40 })).toBeNull();
+  });
+
+  it("reports an over-length fixture once, with the split", () => {
+    const warnings = qtlRunWarnings({ ...vers, lengthFt: 20, maxRunFt: 98 / 12 });
+    const length = warnings.filter((w) => w.includes("maximum"));
+    expect(length).toHaveLength(1);
+    expect(length[0]).toContain("VERS-FLUSH (02) catalog maximum of 8'-2\"");
+    expect(length[0]).toContain("at least 3 fixtures of 6'-8\" each");
+  });
+
+  it("flags a fixture shorter than the catalog minimum", () => {
+    expect(qtlRunWarnings({ ...vers, lengthFt: 0.5 }).some((w) => w.includes("catalog minimum of 1'-0\""))).toBe(true);
+    expect(qtlRunWarnings({ ...vers, lengthFt: 4 }).some((w) => w.includes("minimum"))).toBe(false);
+  });
+});
+
+describe("QTL BOM naming", () => {
+  it("skips a blank application instead of leaving a dangling dash", () => {
+    const run = { ...newQtlRun(), application: "", selectedFamily: "VERS-FLUSH (02)" };
+    const [fixture] = generateToolBom({ ...DEFAULT_TOOLS_STATE, qtlRuns: [run] }, "new-build");
+    expect(fixture.item).toBe("VERS-FLUSH (02)");
   });
 });
 

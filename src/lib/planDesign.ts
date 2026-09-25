@@ -209,6 +209,17 @@ export function polylineLength(points: PlanPoint[]) {
 }
 
 /** Real length of a run in feet, or null when the sheet has no scale yet. */
+/** Where to look for an item: a device's position, or the middle of a run's extent. */
+export function itemCenter(item: PlanItem): PlanPoint {
+  if (item.kind === "device") return item.at;
+  const xs = item.points.map((point) => point.x);
+  const ys = item.points.map((point) => point.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+}
+
 export function runLengthFt(run: PlacedRun, scale: DrawingScale | undefined) {
   return scale ? polylineLength(run.points) / scale.unitsPerFoot : null;
 }

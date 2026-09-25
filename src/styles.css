@@ -1803,6 +1803,44 @@ button:focus-visible,
 
 .qtl-run-card {
   overflow: hidden;
+  scroll-margin-top: 12px;
+}
+
+.qtl-run-card.focused {
+  border-color: #f2b84b;
+}
+
+.qtl-plan-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid #f2b84b;
+  border-radius: 6px;
+  background: var(--surface-1);
+}
+
+.qtl-plan-link > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.qtl-plan-link strong {
+  font-size: 11px;
+}
+
+.qtl-plan-link span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.warning-list .tool-action-row {
+  justify-content: flex-start;
 }
 
 .qtl-flow {
@@ -2583,6 +2621,34 @@ button:focus-visible,
   border-radius: 6px;
 }
 
+.item-card-link {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid #f2b84b;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.item-card-link p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.item-card-link .item-card-actions {
+  margin-top: 0;
+}
+
+.item-card-link > .primary {
+  justify-self: end;
+}
+
+.attention-text {
+  color: var(--warning-text);
+}
+
 .item-card-actions {
   display: flex;
   justify-content: flex-end;
@@ -2653,6 +2719,22 @@ button:focus-visible,
   text-align: left;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+}
+
+.schedule-tag {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.schedule-tag:hover {
+  color: #22d3ee;
 }
 
 .schedule-table th {

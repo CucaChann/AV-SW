@@ -22,6 +22,9 @@ type Props = {
   survey: RetrofitSurvey;
   design: PlanDesign;
   scaleOf: ScaleLookup;
+  qtlFocusId: string | null;
+  onQtlFocusHandled: () => void;
+  onShowOnPlan: (planItemId: string) => void;
 };
 
 const TOOLS: Array<{ id: ProjectTool; label: string; short: string }> = [
@@ -47,6 +50,9 @@ export default function ProjectToolsWorkspace({
   survey,
   design,
   scaleOf,
+  qtlFocusId,
+  onQtlFocusHandled,
+  onShowOnPlan,
 }: Props) {
   return (
     <section className="project-tools-workspace">
@@ -74,13 +80,23 @@ export default function ProjectToolsWorkspace({
       </aside>
 
       <main className="tool-content">
-        {activeTool === "qtl" && <QtlStudio state={state} onChange={onStateChange} />}
+        {activeTool === "qtl" && (
+          <QtlStudio
+            state={state}
+            onChange={onStateChange}
+            design={design}
+            scaleOf={scaleOf}
+            focusRunId={qtlFocusId}
+            onFocusHandled={onQtlFocusHandled}
+            onShowOnPlan={onShowOnPlan}
+          />
+        )}
         {activeTool === "network" && <NetworkBuilder state={state} onChange={onStateChange} />}
         {activeTool === "audio" && <AudioZoneBuilder state={state} onChange={onStateChange} />}
         {activeTool === "video" && <VideoChainBuilder state={state} onChange={onStateChange} />}
         {activeTool === "cabling" && <CablingBuilder state={state} onChange={onStateChange} />}
         {activeTool === "budget" && <BudgetBuilder state={state} onChange={onStateChange} />}
-        {activeTool === "schedule" && <DeviceSchedule design={design} scaleOf={scaleOf} onShowPlan={onClose} />}
+        {activeTool === "schedule" && <DeviceSchedule design={design} scaleOf={scaleOf} onShowPlan={onClose} onShowItem={onShowOnPlan} />}
         {activeTool === "library" && <ManufacturerLibrary />}
         {activeTool === "validate" && (
           <ValidationPanel tools={state} bom={bom} mode={mode} survey={survey} />

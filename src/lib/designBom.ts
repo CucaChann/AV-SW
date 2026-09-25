@@ -36,15 +36,22 @@ function roomsOf(items: PlanItem[]) {
 /**
  * BOM lines for everything placed on the plan, grouped by type, brand, model
  * (and cable type), plus the preliminary placeholder lines they replace.
+ * Items in `covered` (e.g. linear lines linked to a QTL run) are priced by
+ * their builder, so they only retire placeholders here.
  */
-export function designBom(design: PlanDesign, scaleOf: ScaleLookup) {
+export function designBom(design: PlanDesign, scaleOf: ScaleLookup, covered: ReadonlySet<string> = new Set()) {
   const groups = new Map<string, PlanItem[]>();
+  const supersedes = new Set<string>();
   for (const item of design.items) {
+    if (covered.has(item.id)) {
+      const replaced = deviceType(item.typeId)?.supersedes;
+      if (replaced) supersedes.add(replaced);
+      continue;
+    }
     const key = [item.typeId, item.brand.trim(), item.model.trim(), item.kind === "run" ? item.cableType : ""].join("|");
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
 
-  const supersedes = new Set<string>();
   const items: BomItem[] = [];
 
   for (const [key, group] of groups) {

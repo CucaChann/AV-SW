@@ -7,11 +7,12 @@ type Props = {
   design: PlanDesign;
   scaleOf: ScaleLookup;
   onShowPlan: () => void;
+  onShowItem: (itemId: string) => void;
 };
 
 const byTag = (a: PlanItem, b: PlanItem) => a.tag.localeCompare(b.tag, undefined, { numeric: true });
 
-export default function DeviceSchedule({ design, scaleOf, onShowPlan }: Props) {
+export default function DeviceSchedule({ design, scaleOf, onShowPlan, onShowItem }: Props) {
   const sections = LAYER_DEFINITIONS.map((layer) => ({
     layer,
     items: design.items.filter((item) => layerOf(item) === layer.key).sort(byTag),
@@ -52,7 +53,7 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan }: Props) {
         <div>
           <span className="eyebrow">Floor plan</span>
           <h1>Device Schedule</h1>
-          <p>Every device and run placed on the plan, by layer. Edit them on the drawing; this schedule and the BOM follow.</p>
+          <p>Every device and run placed on the plan, by layer. Click a tag to find it on the drawing; edits there update this schedule and the BOM.</p>
         </div>
         <div className="tool-action-row">
           <button onClick={onShowPlan}>Open plan</button>
@@ -100,7 +101,11 @@ export default function DeviceSchedule({ design, scaleOf, onShowPlan }: Props) {
             <tbody>
               {items.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.tag}</td>
+                  <td>
+                    <button className="schedule-tag" onClick={() => onShowItem(item.id)} title="Show on plan">
+                      {item.tag || "—"}
+                    </button>
+                  </td>
                   <td>{deviceType(item.typeId)?.name}</td>
                   <td className={item.room.trim() ? "" : "muted"}>{item.room || "—"}</td>
                   <td>{item.brand || "—"}</td>

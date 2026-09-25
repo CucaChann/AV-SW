@@ -1,8 +1,10 @@
 import type { BomItem, ProjectMode, RetrofitSurvey, SystemName } from "./design";
+import { formatFeet } from "./planDesign";
 import {
   clampReservePct,
   QTL_CATALOG_REVIEW_NOTE,
   qtlCandidatePowerSupply,
+  qtlFixtureById,
   qtlPowerSupplyById,
 } from "./qtlCatalog";
 import { isRecord, listWithDefaults, withDefaults } from "./sanitize";
@@ -41,6 +43,8 @@ export type QtlRun = {
   selectedFamily: string;
   maxRunFt: number;
   notes: string;
+  /** The linear-light line on the floor plan this run was created from ("" when none). */
+  planItemId: string;
 };
 
 export type NetworkPlan = {
@@ -264,6 +268,7 @@ export function newQtlRun(): QtlRun {
     selectedFamily: "TBD / Select from QTL library",
     maxRunFt: 0,
     notes: "",
+    planItemId: "",
   };
 }
 
@@ -342,13 +347,55 @@ export function qtlRunPsuCandidate(run: QtlRun) {
   };
 }
 
+/**
+ * Per-fixture length limits: the catalog's for a selected product, otherwise
+ * the maximum entered on the run. Zero means no known limit.
+ */
+export function qtlLengthLimits(run: QtlRun) {
+  const product = qtlFixtureById(run.productId);
+  if (product?.maxLengthIn || product?.minLengthIn) {
+    return {
+      maxFt: (product.maxLengthIn ?? 0) / 12,
+      minFt: (product.minLengthIn ?? 0) / 12,
+      source: `${product.name} catalog`,
+    };
+  }
+  return { maxFt: Math.max(0, run.maxRunFt), minFt: 0, source: "entered" };
+}
+
+/**
+ * The fewest equal pieces that keep every fixture within its maximum, or null
+ * when the run already fits (or has no known maximum). Lengths round down to
+ * 0.01 ft so a piece never ends up over the limit.
+ */
+export function qtlSplitForMax(run: QtlRun) {
+  const { maxFt } = qtlLengthLimits(run);
+  if (maxFt <= 0 || run.lengthFt <= maxFt) return null;
+  const pieces = Math.ceil(run.lengthFt / maxFt - 1e-9);
+  return {
+    pieces,
+    fixtureQty: Math.max(1, run.fixtureQty) * pieces,
+    lengthFt: Math.floor((run.lengthFt / pieces) * 100) / 100,
+  };
+}
+
 export function qtlRunWarnings(run: QtlRun) {
   const warnings: string[] = [];
   if (!run.room.trim()) warnings.push("Room / location is not assigned.");
   if (run.lengthFt <= 0) warnings.push("Run length must be greater than zero.");
   if (run.wattsPerFt <= 0) warnings.push("Watts/ft is required for load calculation.");
-  if (run.maxRunFt > 0 && run.lengthFt > run.maxRunFt) {
-    warnings.push("Run exceeds the entered manufacturer maximum; split feeds/runs or change product.");
+  const limits = qtlLengthLimits(run);
+  const split = qtlSplitForMax(run);
+  if (split && limits.maxFt) {
+    warnings.push(
+      `Each fixture is ${formatFeet(run.lengthFt)}, longer than the ${limits.source} maximum of ${formatFeet(limits.maxFt)}. ` +
+        `Split it into at least ${split.pieces} fixtures of ${formatFeet(split.lengthFt)} each, or confirm the length with QTL.`,
+    );
+  }
+  if (limits.minFt && run.lengthFt > 0 && run.lengthFt < limits.minFt) {
+    warnings.push(
+      `Each fixture is ${formatFeet(run.lengthFt)}, shorter than the ${limits.source} minimum of ${formatFeet(limits.minFt)}.`,
+    );
   }
   if (run.feed === "TBD") warnings.push("Feed location is still TBD.");
   if (!run.productId && run.selectedFamily.startsWith("TBD")) warnings.push("Exact QTL family/profile is not selected.");
@@ -599,7 +646,7 @@ export function generateToolBom(
       id: `tool-${run.id}-fixture`,
       system: "QTL",
       manufacturer: "QTL",
-      item: `${run.application} — ${run.selectedFamily}`,
+      item: [run.application.trim(), run.selectedFamily].filter(Boolean).join(" — "),
       quantity: `${run.fixtureQty} × ${run.lengthFt.toFixed(2)} ft`,
       status,
       confidence: run.selectedFamily.startsWith("TBD") ? "Review" : "Medium",

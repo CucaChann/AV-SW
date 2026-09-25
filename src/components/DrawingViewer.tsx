@@ -29,6 +29,7 @@ import { effectiveScale } from "../lib/designBom";
 import {
   distance,
   formatFeet,
+  itemCenter,
   itemsOnSheet,
   layerOf,
   nearestRoom,
@@ -47,6 +48,7 @@ import {
 import {
   dxfSheet,
   panForZoom,
+  panToCenter,
   pdfSheet,
   PDF_RENDER_SCALE,
   snapAngle,
@@ -640,6 +642,38 @@ export default function DrawingViewer({
     window.addEventListener("avsw:plan-tool", listener);
     return () => window.removeEventListener("avsw:plan-tool", listener);
   }, []);
+
+  // "Show on plan" from a builder: select the item and bring it into view.
+  const [focusId, setFocusId] = useState<string | null>(null);
+  useEffect(() => {
+    const listener = (event: Event) => setFocusId((event as CustomEvent<string>).detail);
+    window.addEventListener("avsw:plan-select", listener);
+    return () => window.removeEventListener("avsw:plan-select", listener);
+  }, []);
+  useEffect(() => {
+    if (!focusId) return;
+    const item = design.items.find((candidate) => candidate.id === focusId);
+    if (!item || item.drawingId !== drawingId) {
+      setFocusId(null);
+      return;
+    }
+    const container = containerRef.current;
+    if (!sheet || !container) return;
+    setTool({ kind: "select" });
+    setSelectedId(item.id);
+    setFocusId(null);
+    // Another PDF page re-fits the view when it renders; only centre on this one.
+    if (drawingKind === "pdf" && item.page !== pageNumber) {
+      setPageNumber(item.page);
+      return;
+    }
+    setPan(
+      panToCenter(sheet.toStage(itemCenter(item)), zoom, {
+        width: container.clientWidth,
+        height: container.clientHeight,
+      }),
+    );
+  }, [focusId, design.items, drawingId, drawingKind, pageNumber, sheet, zoom]);
 
   function pickType(typeId: string) {
     const type = deviceType(typeId);

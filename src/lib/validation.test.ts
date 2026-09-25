@@ -46,7 +46,12 @@ describe("normalizeTools", () => {
       cableRuns: "not a list",
     });
     expect(tools.qtlRuns).toHaveLength(1);
-    expect(tools.qtlRuns[0]).toMatchObject({ id: "legacy-1", room: "Kitchen", selectedFamily: expect.any(String) });
+    expect(tools.qtlRuns[0]).toMatchObject({
+      id: "legacy-1",
+      room: "Kitchen",
+      selectedFamily: expect.any(String),
+      planItemId: "",
+    });
     expect(tools.audioZones[0]).toMatchObject({ room: "Den", speakerType: "In-Ceiling" });
     expect(tools.cableRuns).toEqual([]);
     expect(() => generateToolBom(tools, "new-build")).not.toThrow();

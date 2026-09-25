@@ -99,3 +99,21 @@ describe("effectiveScale", () => {
     expect(effectiveScale(calibrated, "d1", 1, "Inches")?.unitsPerFoot).toBe(20);
   });
 });
+
+describe("designBom with builder-covered items", () => {
+  it("leaves linked lines to their builder but still retires the placeholder", () => {
+    const design = {
+      ...defaultDesign(),
+      items: [run("l1", "linear-light", 120, { room: "KITCHEN" }), run("l2", "linear-light", 60, { room: "BATH" })],
+    };
+    const { items, supersedes } = designBom(design, inches, new Set(["l1"]));
+    expect(items).toHaveLength(1);
+    expect(items[0].quantity).toBe("1 · 5'-0\" total length");
+    expect(items[0].basis).toContain("BATH");
+    expect(supersedes.has("Linear LED runs / assemblies")).toBe(true);
+
+    const allLinked = designBom(design, inches, new Set(["l1", "l2"]));
+    expect(allLinked.items).toEqual([]);
+    expect(allLinked.supersedes.has("Linear LED runs / assemblies")).toBe(true);
+  });
+});

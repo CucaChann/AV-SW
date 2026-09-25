@@ -4,6 +4,7 @@ import {
   defaultDesign,
   dxfUnitsPerFoot,
   formatFeet,
+  itemCenter,
   moveDesignToDrawing,
   nearestRoom,
   nextTag,
@@ -174,5 +175,15 @@ describe("replacing a drawing", () => {
     const removed = removeDrawingFromDesign(design, "d1");
     expect(removed.items.map((item) => item.id)).toEqual(["b"]);
     expect(removed.scales).toEqual([]);
+  });
+});
+
+describe("itemCenter", () => {
+  it("is a device's position or the middle of a run's extent", () => {
+    const base = { id: "a", typeId: "keypad", drawingId: "d1", page: 1, tag: "", room: "", brand: "", model: "", notes: "", cableType: "CAT6A", quantity: 1 };
+    const device: PlacedDevice = { ...base, kind: "device", at: { x: 3, y: 4 }, rotation: 0 };
+    const run: PlacedRun = { ...base, kind: "run", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 6 }] };
+    expect(itemCenter(device)).toEqual({ x: 3, y: 4 });
+    expect(itemCenter(run)).toEqual({ x: 5, y: 3 });
   });
 });

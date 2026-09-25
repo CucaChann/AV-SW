@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dxfSheet, panForZoom, pdfSheet, snapAngle } from "./planGeometry";
+import { dxfSheet, panForZoom, panToCenter, pdfSheet, snapAngle } from "./planGeometry";
 
 describe("sheet geometry", () => {
   it("round-trips DXF coordinates through the flipped stage", () => {
@@ -38,5 +38,13 @@ describe("panForZoom", () => {
     const before = { x: (cursor.x - pan.x) / zoom, y: (cursor.y - pan.y) / zoom };
     const after = { x: (cursor.x - next.x) / 2, y: (cursor.y - next.y) / 2 };
     expect(after).toEqual(before);
+  });
+});
+
+describe("panToCenter", () => {
+  it("puts the stage point in the middle of the viewport", () => {
+    const point = { x: 400, y: 250 };
+    const pan = panToCenter(point, 2, { width: 1000, height: 600 });
+    expect({ x: pan.x + point.x * 2, y: pan.y + point.y * 2 }).toEqual({ x: 500, y: 300 });
   });
 });

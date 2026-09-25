@@ -62,3 +62,8 @@ export function panForZoom(
     y: cursor.y - ((cursor.y - pan.y) * nextZoom) / zoom,
   };
 }
+
+/** Pan that puts a stage point in the middle of a viewport at this zoom. */
+export function panToCenter(point: PlanPoint, zoom: number, viewport: { width: number; height: number }): PlanPoint {
+  return { x: viewport.width / 2 - point.x * zoom, y: viewport.height / 2 - point.y * zoom };
+}

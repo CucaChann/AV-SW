@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import FileMenu from "./components/FileMenu";
 import Inspector from "./components/Inspector";
 import ProjectToolsWorkspace from "./components/ProjectToolsWorkspace";
+import QtlLinkActions from "./components/plan/QtlLinkActions";
 import type { DrawingAnalysis, DraftRecommendation } from "./lib/dxf";
 import {
   applyRetrofitSurvey,
@@ -25,6 +26,7 @@ import {
   type ProjectToolsState,
 } from "./lib/projectTools";
 import { designBom, effectiveScale, mergeDesignBom } from "./lib/designBom";
+import { deviceType } from "./lib/deviceCatalog";
 import { initializePersistence } from "./lib/persistence";
 import {
   moveDesignToDrawing,
@@ -60,6 +62,12 @@ import {
   withRecent,
   type RecentProject,
 } from "./lib/recents";
+import {
+  fitRunToPlan,
+  linkedPlanItemIds,
+  qtlRunForPlanItem,
+  qtlRunFromPlanLine,
+} from "./lib/qtlBridge";
 import { clearRecovery, loadRecovery, saveRecovery } from "./lib/recovery";
 import { useTheme, type ThemePreference } from "./lib/theme";
 
@@ -524,7 +532,53 @@ function Workspace({ initial }: { initial: Session }) {
       ),
     [project.design, project.activeDrawingId, dxfUnits],
   );
-  const planBom = useMemo(() => designBom(project.design, scaleOf), [project.design, scaleOf]);
+  // Linear lines linked to a QTL run are priced by QTL Studio, not twice.
+  const qtlLinked = useMemo(
+    () => linkedPlanItemIds(projectTools.qtlRuns, project.design),
+    [projectTools.qtlRuns, project.design],
+  );
+  const planBom = useMemo(
+    () => designBom(project.design, scaleOf, qtlLinked),
+    [project.design, scaleOf, qtlLinked],
+  );
+
+  const [qtlFocusId, setQtlFocusId] = useState<string | null>(null);
+  const clearQtlFocus = useCallback(() => setQtlFocusId(null), []);
+  const showOnPlan = useCallback((planItemId: string) => {
+    setActiveTool(null);
+    window.dispatchEvent(new CustomEvent("avsw:plan-select", { detail: planItemId }));
+  }, []);
+
+  const planItemActions = useCallback(
+    (item: PlanItem, lengthFt: number | null) => {
+      if (item.kind !== "run" || deviceType(item.typeId)?.measures !== "linear-light") return null;
+      const run = qtlRunForPlanItem(projectTools.qtlRuns, item.id);
+      const updateRuns = (qtlRuns: typeof projectTools.qtlRuns) => setProjectTools({ ...projectTools, qtlRuns });
+      return (
+        <QtlLinkActions
+          lengthFt={lengthFt}
+          run={run}
+          onCreate={() => {
+            if (lengthFt !== null) updateRuns([...projectTools.qtlRuns, qtlRunFromPlanLine(item, lengthFt)]);
+          }}
+          onOpen={() => {
+            if (!run) return;
+            setQtlFocusId(run.id);
+            setActiveTool("qtl");
+          }}
+          onUsePlanLength={() => {
+            if (!run || lengthFt === null) return;
+            updateRuns(
+              projectTools.qtlRuns.map((candidate) =>
+                candidate.id === run.id ? { ...candidate, ...fitRunToPlan(candidate, lengthFt) } : candidate,
+              ),
+            );
+          }}
+        />
+      );
+    },
+    [projectTools, setProjectTools],
+  );
 
   const bom = useMemo(() => {
     const scopedBase =
@@ -748,6 +802,9 @@ function Workspace({ initial }: { initial: Session }) {
             survey={retrofitSurvey}
             design={project.design}
             scaleOf={scaleOf}
+            qtlFocusId={qtlFocusId}
+            onQtlFocusHandled={clearQtlFocus}
+            onShowOnPlan={showOnPlan}
           />
         )}
 
@@ -758,6 +815,7 @@ function Workspace({ initial }: { initial: Session }) {
           design={project.design}
           active={!activeTool}
           onDesignChange={changeDesign}
+          itemActions={planItemActions}
           onOpenDrawing={() => void openDrawingCommand()}
           onAnalysisChange={setAnalysis}
           onDraftChange={setDraft}
