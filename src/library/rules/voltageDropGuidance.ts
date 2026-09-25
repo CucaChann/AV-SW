@@ -59,13 +59,23 @@ export function evaluateVoltageDropGuidance(input: {
     nominalVoltageV * (dimmerMode ? rule.params.dimmerVoltageFactor : 1),
   );
   const currentA = round(loadWatts / calculationVoltageV);
-  const maxDropV = round((nominalVoltageV * targetDropPercent) / 100);
+  // QTL's published guidance expresses drop as a percentage of the nominal
+  // system voltage. Keep the comparison at full precision and round only the
+  // values returned for display.
+  const maxDropVExact = (nominalVoltageV * targetDropPercent) / 100;
+  const estimatedDropVExact =
+    input.estimatedDropV === undefined ? null : input.estimatedDropV;
+  const maxDropV = round(maxDropVExact);
   const estimatedDropV =
-    input.estimatedDropV === undefined ? null : round(input.estimatedDropV);
+    estimatedDropVExact === null ? null : round(estimatedDropVExact);
   const estimatedDropPercent =
-    estimatedDropV === null ? null : round((estimatedDropV / nominalVoltageV) * 100);
+    estimatedDropVExact === null
+      ? null
+      : round((estimatedDropVExact / nominalVoltageV) * 100);
   const withinTarget =
-    estimatedDropV === null ? null : estimatedDropV <= maxDropV + 1e-9;
+    estimatedDropVExact === null
+      ? null
+      : estimatedDropVExact <= maxDropVExact + Number.EPSILON;
 
   const modeNote = dimmerMode
     ? `The QTL calculator's dimmer factor gives a calculation voltage of ${calculationVoltageV} V.`
