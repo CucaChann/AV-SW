@@ -275,7 +275,7 @@ describe("QTL QZ output grouping", () => {
     const result = evaluatePowerSupplyOutputGrouping({
       rule: qzPro,
       voltageV: 24,
-      loadsW: [90],
+      loadsW: [80, 80],
       designReservePct: 10,
     });
 
