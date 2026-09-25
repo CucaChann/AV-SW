@@ -150,3 +150,9 @@ describe("QTL BOM basis", () => {
     expect(driver?.confidence).toBe("Review");
   });
 });
+
+describe("audio zone defaults", () => {
+  it("start from a high-end signal chain, not a streaming amp", () => {
+    expect(newAudioZone()).toMatchObject({ amplification: "DSP / Multi-Channel Amp", control: "Savant" });
+  });
+});

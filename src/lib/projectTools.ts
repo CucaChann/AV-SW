@@ -215,6 +215,7 @@ export const MANUFACTURERS: ManufacturerSummary[] = [
   { name: "Ubiquiti / UniFi", categories: ["Network", "Wi-Fi", "Protect", "Access"], focus: "Gateway, switching, APs, cameras, access control and rack ecosystem." },
   { name: "Leon Speakers", categories: ["Custom Audio", "Soundbars"], focus: "Custom-width passive soundbars and architectural audio." },
   { name: "Sonance", categories: ["Architectural Audio", "Invisible", "Outdoor"], focus: "In-ceiling, in-wall, invisible, outdoor and subwoofer solutions." },
+  { name: "Revel", categories: ["Architectural Audio", "Loudspeakers"], focus: "High-performance loudspeakers, including in-wall and in-ceiling architectural models." },
   { name: "James by Sonance", categories: ["Custom Soundbars", "Small Aperture", "Subwoofers"], focus: "High-performance architectural and custom-length audio." },
   { name: "K-array", categories: ["Architectural Audio", "Luxury Audio"], focus: "Discreet line-source, flexible arrays, subs and amplifier ecosystem." },
   { name: "KSCAPE", categories: ["Audio + Lighting"], focus: "Integrated architectural rail combining lighting and audio." },
@@ -366,8 +367,8 @@ export function newAudioZone(): AudioZone {
     purpose: "Distributed Audio",
     speakerCount: 2,
     speakerType: "In-Ceiling",
-    amplification: "Sonos Amp",
-    control: "Sonos",
+    amplification: "DSP / Multi-Channel Amp",
+    control: "Savant",
     subwoofer: false,
     notes: "",
   };

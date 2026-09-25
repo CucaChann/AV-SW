@@ -37,7 +37,7 @@ export function ManufacturerLibrary() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="QTL, K-array, Sonos, Savant, network, cinema..."
+          placeholder="QTL, K-array, Revel, Savant, network, cinema..."
         />
       </label>
 
@@ -53,7 +53,7 @@ export function ManufacturerLibrary() {
           </article>
           <article>
             <strong>Distributed Audio Zone</strong>
-            <p>Room intent → speaker family → wiring → Sonos Amp / AVR / DSP amp → control experience → optional subwoofer → validation.</p>
+            <p>Room intent → speaker family → wiring → DSP multi-channel amp / AVR → control experience → optional subwoofer → validation.</p>
           </article>
           <article>
             <strong>UniFi Upgrade</strong>
