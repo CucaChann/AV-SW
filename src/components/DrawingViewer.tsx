@@ -91,7 +91,8 @@ type Props = {
   onDesignChange: (next: PlanDesign, change?: DesignChange) => void;
   /** Asks the app to pick a drawing and add it to the project. */
   onOpenDrawing: () => void;
-  onAnalysisChange?: (analysis: DrawingAnalysis | null) => void;
+  /** The parsed DXF's analysis, with the drawing it belongs to (null while none). */
+  onAnalysisChange?: (analysis: DrawingAnalysis | null, drawingId: string | null) => void;
   onDraftChange?: (recommendations: DraftRecommendation[]) => void;
   /** Extra buttons in the selected item's card (e.g. QTL Studio link). */
   itemActions?: (item: PlanItem, lengthFt: number | null) => ReactNode;
@@ -296,7 +297,7 @@ export default function DrawingViewer({
     setTool({ kind: "select" });
     setSelectedId(null);
     setCalibration(null);
-    onAnalysisChangeRef.current?.(null);
+    onAnalysisChangeRef.current?.(null, drawing?.id ?? null);
 
     if (!drawing) {
       setDrawingKind(null);
@@ -323,7 +324,7 @@ export default function DrawingViewer({
           if (cancelled) return;
           setDxfDrawing(parsed);
           setDrawingKind("dxf");
-          onAnalysisChangeRef.current?.(parsed.analysis);
+          onAnalysisChangeRef.current?.(parsed.analysis, current.id);
         }
       } catch (openError) {
         if (cancelled) return;

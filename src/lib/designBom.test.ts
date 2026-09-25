@@ -134,3 +134,22 @@ describe("designBom brand and model notes", () => {
     expect(modelOnly.basis).toContain("Brand not selected yet.");
   });
 });
+
+describe("designBom on a sheet with unverified alignment", () => {
+  it("drops confidence to Review and says why", () => {
+    const design = {
+      ...defaultDesign(),
+      items: [
+        device("k1", "keypad", "KITCHEN", { brand: "Lutron", model: "Palladiom 4-button" }),
+        device("k2", "keypad", "OFFICE", { brand: "Lutron", model: "Palladiom 4-button", page: 2 }),
+      ],
+      unverifiedSheets: [{ drawingId: "d1", page: 2, reason: "carried" }],
+    };
+    const [line] = bomFor(design).items;
+    expect(line.confidence).toBe("Review");
+    expect(line.basis).toContain("1 of these is on a sheet whose alignment");
+
+    const verified = bomFor({ ...design, unverifiedSheets: [] }).items[0];
+    expect(verified.confidence).toBe("Medium");
+  });
+});

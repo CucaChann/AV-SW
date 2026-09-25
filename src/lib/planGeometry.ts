@@ -67,3 +67,53 @@ export function panForZoom(
 export function panToCenter(point: PlanPoint, zoom: number, viewport: { width: number; height: number }): PlanPoint {
   return { x: viewport.width / 2 - point.x * zoom, y: viewport.height / 2 - point.y * zoom };
 }
+
+/**
+ * A similarity transform (move, turn, uniform scale):
+ * x' = a·x − b·y + tx, y' = b·x + a·y + ty.
+ */
+export type Similarity = { a: number; b: number; tx: number; ty: number };
+
+export type PointPair = { from: PlanPoint; to: PlanPoint };
+
+export const IDENTITY: Similarity = { a: 1, b: 0, tx: 0, ty: 0 };
+
+/**
+ * The transform taking each `from` to its `to`: one pair moves, two pairs
+ * also turn and scale. Null when two pairs start at the same point.
+ */
+export function similarityFromPairs(pairs: PointPair[]): Similarity | null {
+  if (pairs.length === 0) return IDENTITY;
+  const [first, second] = pairs;
+  if (!second) {
+    return { a: 1, b: 0, tx: first.to.x - first.from.x, ty: first.to.y - first.from.y };
+  }
+  const px = second.from.x - first.from.x;
+  const py = second.from.y - first.from.y;
+  const qx = second.to.x - first.to.x;
+  const qy = second.to.y - first.to.y;
+  const length = px * px + py * py;
+  if (length < 1e-18) return null;
+  // (a + bi) = (q2 − q1) / (p2 − p1) as complex numbers.
+  const a = (qx * px + qy * py) / length;
+  const b = (qy * px - qx * py) / length;
+  return {
+    a,
+    b,
+    tx: first.to.x - (a * first.from.x - b * first.from.y),
+    ty: first.to.y - (b * first.from.x + a * first.from.y),
+  };
+}
+
+export function applySimilarity(t: Similarity, point: PlanPoint): PlanPoint {
+  return { x: t.a * point.x - t.b * point.y + t.tx, y: t.b * point.x + t.a * point.y + t.ty };
+}
+
+export function similarityScale(t: Similarity) {
+  return Math.hypot(t.a, t.b);
+}
+
+/** Counter-clockwise angle in the drawing's own axes, in degrees. */
+export function similarityAngleDeg(t: Similarity) {
+  return (Math.atan2(t.b, t.a) * 180) / Math.PI;
+}

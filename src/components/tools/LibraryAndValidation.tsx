@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BomItem, ProjectMode, RetrofitSurvey } from "../../lib/design";
+import type { PlanDesign } from "../../lib/planDesign";
 import {
   MANUFACTURERS,
   validateProject,
@@ -93,15 +94,17 @@ export function ValidationPanel({
   bom,
   mode,
   survey,
+  design,
 }: {
   tools: ProjectToolsState;
   bom: BomItem[];
   mode: ProjectMode;
   survey: RetrofitSurvey;
+  design: PlanDesign;
 }) {
   const issues = useMemo(
-    () => validateProject({ tools, bom, mode, survey }),
-    [tools, bom, mode, survey],
+    () => validateProject({ tools, bom, mode, survey, design }),
+    [tools, bom, mode, survey, design],
   );
 
   const counts = {

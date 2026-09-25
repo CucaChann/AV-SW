@@ -4,6 +4,7 @@ import {
   type LayerKey,
 } from "./deviceCatalog";
 import type { RoomCandidate } from "./dxf";
+import { applySimilarity, similarityAngleDeg, similarityScale, type Similarity } from "./planGeometry";
 import { isRecord, withDefaults } from "./sanitize";
 
 /**
@@ -45,10 +46,29 @@ export type DrawingScale = {
   label: string;
 };
 
+/** Extents and units of a DXF, to tell whether a revision kept the same coordinates. */
+export type SheetSignature = {
+  units: string;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+};
+
+/**
+ * A sheet whose items were carried over from a replaced drawing and haven't
+ * been checked against it yet. Verified sheets have no entry.
+ */
+export type UnverifiedSheet = {
+  drawingId: string;
+  page: number;
+  reason: string;
+  /** DXF only: the replaced drawing's signature, compared once the new one is read. */
+  previous?: SheetSignature;
+};
+
 export type PlanDesign = {
   layers: DesignLayer[];
   items: PlanItem[];
   scales: DrawingScale[];
+  unverifiedSheets: UnverifiedSheet[];
 };
 
 export function defaultDesign(): PlanDesign {
@@ -56,6 +76,7 @@ export function defaultDesign(): PlanDesign {
     layers: LAYER_DEFINITIONS.map((layer) => ({ key: layer.key, visible: true, locked: false })),
     items: [],
     scales: [],
+    unverifiedSheets: [],
   };
 }
 
@@ -166,7 +187,44 @@ export function normalizeDesign(value: unknown, repairs?: string[]): PlanDesign 
     repairs?.push("design.scales");
   }
 
+  if (Array.isArray(value.unverifiedSheets)) {
+    value.unverifiedSheets.forEach((entry, index) => {
+      const sheet = isRecord(entry) ? entry : {};
+      const page = sheet.page;
+      if (
+        typeof sheet.drawingId !== "string" ||
+        typeof page !== "number" ||
+        !Number.isInteger(page) ||
+        page < 1
+      ) {
+        repairs?.push(`design.unverifiedSheets[${index}]`);
+        return;
+      }
+      const previous = sheetSignature(sheet.previous);
+      if (sheet.previous !== undefined && !previous) repairs?.push(`design.unverifiedSheets[${index}].previous`);
+      design.unverifiedSheets.push({
+        drawingId: sheet.drawingId,
+        page,
+        reason: typeof sheet.reason === "string" ? sheet.reason : "",
+        ...(previous ? { previous } : {}),
+      });
+    });
+  } else if (value.unverifiedSheets !== undefined) {
+    repairs?.push("design.unverifiedSheets");
+  }
+
   return design;
+}
+
+function sheetSignature(value: unknown): SheetSignature | null {
+  if (!isRecord(value) || typeof value.units !== "string" || !isRecord(value.bounds)) return null;
+  const { minX, minY, maxX, maxY } = value.bounds;
+  const numbers = [minX, minY, maxX, maxY];
+  if (!numbers.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  return {
+    units: value.units,
+    bounds: { minX: minX as number, minY: minY as number, maxX: maxX as number, maxY: maxY as number },
+  };
 }
 
 export function itemsOnSheet(design: PlanDesign, drawingId: string, page: number) {
@@ -328,5 +386,137 @@ export function removeDrawingFromDesign(design: PlanDesign, drawingId: string): 
     ...design,
     items: design.items.filter((item) => item.drawingId !== drawingId),
     scales: design.scales.filter((scale) => scale.drawingId !== drawingId),
+    unverifiedSheets: design.unverifiedSheets.filter((sheet) => sheet.drawingId !== drawingId),
+  };
+}
+
+const PDF_REVISION_REASON =
+  "Carried over from the previous PDF. A revised PDF can be cropped, scaled or ordered differently, so check that devices still line up.";
+const DXF_PENDING_REASON = "Carried over from the previous DXF. Checking whether the new drawing uses the same units and extents.";
+const DXF_UNREAD_REASON =
+  "Carried over from the previous DXF, which couldn't be compared with the new one. Check that devices still line up.";
+
+/**
+ * Moves a replaced drawing's items and scales onto its revision and marks
+ * every sheet that received any as not verified. For a DXF, `previous` is the
+ * replaced drawing's signature; a matching revision clears the mark later.
+ */
+export function carryDesignToRevision(
+  design: PlanDesign,
+  fromDrawingId: string,
+  toDrawingId: string,
+  kind: "pdf" | "dxf",
+  previous: SheetSignature | null,
+): PlanDesign {
+  const pages = new Set<number>();
+  for (const item of design.items) if (item.drawingId === fromDrawingId) pages.add(item.page);
+  for (const scale of design.scales) if (scale.drawingId === fromDrawingId) pages.add(scale.page);
+  const moved = moveDesignToDrawing(design, fromDrawingId, toDrawingId);
+  const marks: UnverifiedSheet[] = [...pages].sort((a, b) => a - b).map((page) =>
+    kind === "pdf"
+      ? { drawingId: toDrawingId, page, reason: PDF_REVISION_REASON }
+      : previous
+        ? { drawingId: toDrawingId, page, reason: DXF_PENDING_REASON, previous }
+        : { drawingId: toDrawingId, page, reason: DXF_UNREAD_REASON },
+  );
+  return {
+    ...moved,
+    unverifiedSheets: [
+      ...moved.unverifiedSheets.filter((sheet) => sheet.drawingId !== fromDrawingId),
+      ...marks,
+    ],
+  };
+}
+
+/** True when two DXF signatures describe the same coordinate space. */
+export function sameSignature(a: SheetSignature, b: SheetSignature) {
+  if (a.units !== b.units) return false;
+  const size = Math.max(a.bounds.maxX - a.bounds.minX, a.bounds.maxY - a.bounds.minY, 1e-9);
+  const tolerance = size * 1e-6;
+  return (["minX", "minY", "maxX", "maxY"] as const).every(
+    (key) => Math.abs(a.bounds[key] - b.bounds[key]) <= tolerance,
+  );
+}
+
+function describeSignatureChange(before: SheetSignature, after: SheetSignature) {
+  if (before.units !== after.units) {
+    return `The new DXF uses ${after.units || "unknown"} units; the previous one used ${before.units || "unknown"}.`;
+  }
+  return "The new DXF's extents differ from the previous drawing's, so its origin or contents may have moved.";
+}
+
+/**
+ * Once a replacing DXF has been read: clears the mark when it has the same
+ * units and extents as the drawing it replaced, otherwise says what changed.
+ * Returns the design unchanged when there is nothing to resolve.
+ */
+export function resolveDxfRevision(design: PlanDesign, drawingId: string, current: SheetSignature): PlanDesign {
+  const pending = design.unverifiedSheets.find((sheet) => sheet.drawingId === drawingId && sheet.previous);
+  const before = pending?.previous;
+  if (!pending || !before) return design;
+  const same = sameSignature(before, current);
+  return {
+    ...design,
+    unverifiedSheets: design.unverifiedSheets.flatMap((sheet) => {
+      if (sheet !== pending) return [sheet];
+      return same
+        ? []
+        : [{ drawingId: sheet.drawingId, page: sheet.page, reason: describeSignatureChange(before, current) }];
+    }),
+  };
+}
+
+export function unverifiedSheet(design: PlanDesign, drawingId: string, page: number) {
+  return design.unverifiedSheets.find((sheet) => sheet.drawingId === drawingId && sheet.page === page);
+}
+
+/** Keys (`drawingId:page`) of sheets whose alignment isn't verified. */
+export function unverifiedSheetKeys(design: PlanDesign) {
+  return new Set(design.unverifiedSheets.map((sheet) => `${sheet.drawingId}:${sheet.page}`));
+}
+
+/**
+ * Applies a re-registration to one sheet: moves every item on it, turns
+ * devices with it, and rescales the sheet's stored scale, then marks the sheet
+ * verified. `yUp` is true for DXF coordinates (y grows upward).
+ */
+export function alignSheet(
+  design: PlanDesign,
+  drawingId: string,
+  page: number,
+  transform: Similarity,
+  yUp: boolean,
+): PlanDesign {
+  const onSheet = (entry: { drawingId: string; page: number }) => entry.drawingId === drawingId && entry.page === page;
+  // Device rotation is counter-clockwise on screen; in y-down coordinates the
+  // transform's angle turns the other way.
+  const turn = similarityAngleDeg(transform) * (yUp ? 1 : -1);
+  const scale = similarityScale(transform);
+  const aligned: PlanDesign = {
+    ...design,
+    items: design.items.map((item) => {
+      if (!onSheet(item)) return item;
+      return item.kind === "device"
+        ? { ...item, at: applySimilarity(transform, item.at), rotation: normalizeDegrees(item.rotation + turn) }
+        : { ...item, points: item.points.map((point) => applySimilarity(transform, point)) };
+    }),
+    scales: design.scales.map((entry) =>
+      onSheet(entry) ? { ...entry, unitsPerFoot: entry.unitsPerFoot * scale } : entry,
+    ),
+  };
+  return markSheetVerified(aligned, drawingId, page);
+}
+
+function normalizeDegrees(degrees: number) {
+  const wrapped = ((degrees % 360) + 360) % 360;
+  return wrapped > 180 ? wrapped - 360 : wrapped;
+}
+
+export function markSheetVerified(design: PlanDesign, drawingId: string, page: number): PlanDesign {
+  return {
+    ...design,
+    unverifiedSheets: design.unverifiedSheets.filter(
+      (sheet) => !(sheet.drawingId === drawingId && sheet.page === page),
+    ),
   };
 }

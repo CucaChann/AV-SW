@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { dxfSheet, panForZoom, panToCenter, pdfSheet, snapAngle } from "./planGeometry";
+import {
+  applySimilarity,
+  dxfSheet,
+  panForZoom,
+  panToCenter,
+  pdfSheet,
+  similarityAngleDeg,
+  similarityFromPairs,
+  similarityScale,
+  snapAngle,
+} from "./planGeometry";
 
 describe("sheet geometry", () => {
   it("round-trips DXF coordinates through the flipped stage", () => {
@@ -46,5 +56,37 @@ describe("panToCenter", () => {
     const point = { x: 400, y: 250 };
     const pan = panToCenter(point, 2, { width: 1000, height: 600 });
     expect({ x: pan.x + point.x * 2, y: pan.y + point.y * 2 }).toEqual({ x: 500, y: 300 });
+  });
+});
+
+describe("similarityFromPairs", () => {
+  it("moves by one pair", () => {
+    const t = similarityFromPairs([{ from: { x: 1, y: 2 }, to: { x: 4, y: 6 } }])!;
+    expect(applySimilarity(t, { x: 10, y: 10 })).toEqual({ x: 13, y: 14 });
+    expect(similarityScale(t)).toBe(1);
+  });
+
+  it("maps both pairs exactly and reports scale and angle", () => {
+    const pairs = [
+      { from: { x: 100, y: 50 }, to: { x: 212.5, y: -40 } },
+      { from: { x: 400, y: 50 }, to: { x: 212.5, y: 560 } },
+    ];
+    const t = similarityFromPairs(pairs)!;
+    for (const { from, to } of pairs) {
+      const mapped = applySimilarity(t, from);
+      expect(mapped.x).toBeCloseTo(to.x, 9);
+      expect(mapped.y).toBeCloseTo(to.y, 9);
+    }
+    expect(similarityScale(t)).toBeCloseTo(2);
+    expect(similarityAngleDeg(t)).toBeCloseTo(90);
+  });
+
+  it("refuses two pairs that start at the same point", () => {
+    expect(
+      similarityFromPairs([
+        { from: { x: 5, y: 5 }, to: { x: 0, y: 0 } },
+        { from: { x: 5, y: 5 }, to: { x: 9, y: 9 } },
+      ]),
+    ).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RETROFIT_SURVEY } from "./design";
+import { defaultDesign } from "./planDesign";
 import { cableRunTotal, DEFAULT_TOOLS_STATE, generateToolBom, issueSummary, newCableRun, normalizeTools, validateProject } from "./projectTools";
 
 const validate = (tools = DEFAULT_TOOLS_STATE) =>
@@ -63,5 +64,28 @@ describe("cableRunTotal", () => {
     const run = { ...newCableRun(), measuredFt: 50, verticalAllowanceFt: 10, serviceLoopPct: 10, wastePct: 10, quantity: 1 };
     expect(cableRunTotal(run)).toBe(72);
     expect(cableRunTotal({ ...run, measuredFt: 50.5 })).toBe(73);
+  });
+});
+
+describe("validateProject with a floor plan", () => {
+  it("warns about carried items whose alignment isn't verified", () => {
+    const keypad = {
+      id: "k1", typeId: "keypad", drawingId: "d2", page: 1, tag: "KP-1", room: "", brand: "", model: "",
+      notes: "", cableType: "CAT6A", quantity: 1, kind: "device" as const, at: { x: 0, y: 0 }, rotation: 0,
+    };
+    const design = {
+      ...defaultDesign(),
+      items: [keypad],
+      unverifiedSheets: [
+        { drawingId: "d2", page: 1, reason: "Carried over from the previous PDF." },
+        // A marked sheet with nothing on it is not worth a warning.
+        { drawingId: "d2", page: 2, reason: "Carried over from the previous PDF." },
+      ],
+    };
+    const issues = validateProject({
+      bom: [], mode: "new-build", survey: DEFAULT_RETROFIT_SURVEY, tools: DEFAULT_TOOLS_STATE, design,
+    }).filter((issue) => issue.system === "Floor Plan");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "Warning", message: expect.stringContaining("Page 1: 1 placed item") });
   });
 });
