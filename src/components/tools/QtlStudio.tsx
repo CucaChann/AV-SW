@@ -185,9 +185,13 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
         const legacyCandidate = qtlRunPsuCandidate(run);
         const assessment = assessQtlRun(run);
         const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+        const controlReviewSuffix =
+          assessment.power.result && !assessment.power.controlModeConfirmed
+            ? " · control mode not confirmed"
+            : "";
         const powerCandidate = assessment.power.covered
           ? sourcedCapacity
-            ? String(sourcedCapacity) + "W proposed-library candidate"
+            ? String(sourcedCapacity) + "W proposed-library candidate" + controlReviewSuffix
             : "Proposed-library rule: review"
           : legacyCandidate?.mismatches.length
             ? "Legacy catalog: incompatible PSU family"
@@ -300,10 +304,14 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
               const legacyCandidate = qtlRunPsuCandidate(run);
               const assessment = assessQtlRun(run);
               const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+              const controlReviewSuffix =
+                assessment.power.result && !assessment.power.controlModeConfirmed
+                  ? " · control mode not confirmed"
+                  : "";
               const powerName = assessment.power.familyName ?? psu?.name ?? "PSU TBD";
               const capacityLabel = assessment.power.covered
                 ? sourcedCapacity
-                  ? String(sourcedCapacity) + "W proposed-library candidate"
+                  ? String(sourcedCapacity) + "W proposed-library candidate" + controlReviewSuffix
                   : "Source-backed review"
                 : legacyCandidate?.wattage
                   ? String(legacyCandidate.wattage) + "W legacy planning candidate"
@@ -521,7 +529,8 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                         ? String(assessment.power.result.selectedCapacityW) + " W · " +
                           String(assessment.power.result.outputCount ?? 0) +
                           " output" +
-                          (assessment.power.result.outputCount === 1 ? "" : "s")
+                          (assessment.power.result.outputCount === 1 ? "" : "s") +
+                          (assessment.power.controlModeConfirmed ? "" : " · control mode not confirmed")
                         : assessment.power.covered
                           ? "Review"
                           : "Legacy planning"}
