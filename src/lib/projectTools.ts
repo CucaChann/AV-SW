@@ -414,7 +414,7 @@ export function qtlRunWarnings(run: QtlRun) {
   for (const mismatch of qtlPsuMismatches(run)) warnings.push(`PSU family mismatch: ${mismatch}`);
   if (clampReservePct(run.reservePct) === 0) {
     warnings.push(
-      "No optional design reserve is applied. Add one only when project policy requires it; AV-SW does not attribute a universal reserve requirement to QTL.",
+      "No design reserve is applied, so the supply may be loaded to 100% of its rating. Set the project's reserve policy; no QTL source is cited for a specific value.",
     );
   }
   return warnings;
