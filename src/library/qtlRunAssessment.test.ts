@@ -57,6 +57,19 @@ describe("assessQtlRun", () => {
     expect(result.power.result?.selectedCapacityW).toBe(30);
   });
 
+  it("keeps the exact QZ control mode unresolved for the preset's mixed control text", () => {
+    const result = assessQtlRun({
+      ...base,
+      dimming: "0-10V / Phase capable QZ variant",
+    });
+
+    expect(result.power.familyName).toBe("QZ-PRO-PH/0-10V");
+    expect(result.power.result?.selectedCapacityW).toBe(96);
+    expect(result.power.controlModeConfirmed).toBe(false);
+    expect(result.power.unresolvedControlMethods).toEqual(["0-10v", "phase"]);
+    expect(result.power.note).toContain("exact control mode still needs selection/review");
+  });
+
   it("does not pretend an unsupported QZ control variant is source-backed", () => {
     const result = assessQtlRun({ ...base, dimming: "DMX" });
 
