@@ -13,6 +13,7 @@ import {
   type QtlRun,
 } from "../../lib/projectTools";
 import { fitRunToPlan, planLengthDifference, qtlRunTotalFt } from "../../lib/qtlBridge";
+import { assessQtlRun } from "../../library/qtlRunAssessment";
 import {
   QTL_FAMILY_OVERVIEW,
   QTL_FIXTURES,
@@ -175,11 +176,39 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
         "Control / Dimming",
         "PSU Family",
         "Planning PSU Candidate",
+        "Rule Status",
+        "Voltage-drop guidance",
         "Notes",
       ],
       ...state.qtlRuns.map((raw) => {
         const run = normalizedRun(raw);
-        const candidate = qtlRunPsuCandidate(run);
+        const legacyCandidate = qtlRunPsuCandidate(run);
+        const assessment = assessQtlRun(run);
+        const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+        const controlReviewSuffix =
+          assessment.power.result && !assessment.power.controlModeConfirmed
+            ? " · control mode not confirmed"
+            : "";
+        const powerCandidate = assessment.power.covered
+          ? sourcedCapacity
+            ? String(sourcedCapacity) + "W proposed-library candidate" + controlReviewSuffix
+            : "Proposed-library rule: review"
+          : legacyCandidate?.mismatches.length
+            ? "Legacy catalog: incompatible PSU family"
+            : legacyCandidate?.wattage
+              ? String(legacyCandidate.wattage) + "W legacy planning candidate"
+              : "Engineering / quote review";
+        const hasLibraryCoverage =
+          assessment.ordering.covered ||
+          assessment.power.covered ||
+          assessment.voltageDrop.covered;
+        const voltageGuidance = assessment.voltageDrop.result
+          ? String(assessment.voltageDrop.result.targetDropPercent) +
+            "% target / " +
+            String(assessment.voltageDrop.result.maxDropV) +
+            "V max drop"
+          : assessment.voltageDrop.note;
+
         return [
           run.room,
           run.application,
@@ -197,12 +226,12 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
           run.lens,
           run.feed,
           run.dimming,
-          candidate?.family.name ?? run.powerSupplyFamilyId,
-          candidate?.mismatches.length
-            ? "Incompatible PSU family"
-            : candidate?.wattage
-              ? `${candidate.wattage}W capacity candidate`
-              : "Engineering / quote review",
+          assessment.power.familyName ?? legacyCandidate?.family.name ?? run.powerSupplyFamilyId,
+          powerCandidate,
+          hasLibraryCoverage
+            ? "Proposed source-backed library — human verification required"
+            : "Legacy catalog / planning only",
+          voltageGuidance,
           run.notes,
         ];
       }),
@@ -272,9 +301,29 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
               const run = normalizedRun(raw);
               const product = qtlFixtureById(run.productId);
               const psu = qtlPowerSupplyById(run.powerSupplyFamilyId);
-              const candidate = qtlRunPsuCandidate(run);
-              const warnings = qtlRunWarnings(run);
-              const split = qtlSplitForMax(run);
+              const legacyCandidate = qtlRunPsuCandidate(run);
+              const assessment = assessQtlRun(run);
+              const sourcedCapacity = assessment.power.result?.selectedCapacityW ?? null;
+              const controlReviewSuffix =
+                assessment.power.result && !assessment.power.controlModeConfirmed
+                  ? " · control mode not confirmed"
+                  : "";
+              const powerName = assessment.power.familyName ?? psu?.name ?? "PSU TBD";
+              const capacityLabel = assessment.power.covered
+                ? sourcedCapacity
+                  ? String(sourcedCapacity) + "W proposed-library candidate" + controlReviewSuffix
+                  : "Source-backed review"
+                : legacyCandidate?.wattage
+                  ? String(legacyCandidate.wattage) + "W legacy planning candidate"
+                  : "Engineering review";
+              const warnings = qtlRunWarnings(run).filter((warning) => {
+                if (assessment.ordering.covered && warning.startsWith("Each fixture is ")) return false;
+                if (assessment.power.covered && warning.startsWith("PSU family mismatch:")) return false;
+                return true;
+              });
+              // Source-backed products suppress the old equal-piece split because
+              // an exact orderable split can depend on manufacturer increments.
+              const split = assessment.ordering.covered ? null : qtlSplitForMax(run);
               const link = planLink(run);
               const linkedItem = link?.item ?? null;
               const planFt = link?.planFt ?? null;
@@ -343,8 +392,8 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                     <div className="qtl-flow-arrow">→</div>
                     <div className="qtl-flow-node psu">
                       <span>POWER</span>
-                      <strong>{psu?.name ?? "PSU TBD"}</strong>
-                      <small>{candidate?.wattage ? `${candidate.wattage}W capacity candidate` : "Engineering review"}</small>
+                      <strong>{powerName}</strong>
+                      <small>{capacityLabel}</small>
                     </div>
                   </div>
 
@@ -452,9 +501,80 @@ export default function QtlStudio({ state, onChange, design, scaleOf, focusRunId
                   <div className="calculation-strip qtl-calcs">
                     <div><span>Fixture length total</span><strong>{(run.lengthFt * run.fixtureQty).toFixed(2)} ft</strong></div>
                     <div><span>Connected load</span><strong>{qtlRunPower(run).toFixed(1)} W</strong></div>
-                    <div><span>PSU family</span><strong>{psu?.name ?? "TBD"}</strong></div>
-                    <div><span>Capacity candidate</span><strong>{candidate?.wattage ? `${candidate.wattage} W` : "Review"}</strong></div>
+                    <div><span>PSU family</span><strong>{powerName}</strong></div>
+                    <div><span>Capacity candidate</span><strong>{capacityLabel}</strong></div>
                   </div>
+
+                  <div className="qtl-source-row">
+                    <div>
+                      <strong>Published fixture ordering</strong>
+                      <span>{assessment.ordering.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.ordering.covered
+                        ? assessment.ordering.minLengthIn !== null && assessment.ordering.maxLengthIn !== null
+                          ? assessment.ordering.minLengthIn + "–" + assessment.ordering.maxLengthIn + " in"
+                          : "Proposed library"
+                        : "Legacy planning"}
+                    </span>
+                  </div>
+
+                  <div className="qtl-source-row psu-source">
+                    <div>
+                      <strong>Driver / output grouping</strong>
+                      <span>{assessment.power.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.power.result?.selectedCapacityW
+                        ? String(assessment.power.result.selectedCapacityW) + " W · " +
+                          String(assessment.power.result.outputCount ?? 0) +
+                          " output" +
+                          (assessment.power.result.outputCount === 1 ? "" : "s") +
+                          (assessment.power.controlModeConfirmed ? "" : " · control mode not confirmed")
+                        : assessment.power.covered
+                          ? "Review"
+                          : "Legacy planning"}
+                    </span>
+                  </div>
+
+                  <div className="qtl-source-row">
+                    <div>
+                      <strong>Voltage-drop guidance</strong>
+                      <span>{assessment.voltageDrop.note}</span>
+                    </div>
+                    <span className="badge">
+                      {assessment.voltageDrop.result
+                        ? String(assessment.voltageDrop.result.targetDropPercent) +
+                          "% · " +
+                          String(assessment.voltageDrop.result.maxDropV) +
+                          " V max"
+                        : "Review"}
+                    </span>
+                  </div>
+
+                  {assessment.libraryIssues.length > 0 && (
+                    <div className="warning-list">
+                      {assessment.libraryIssues.map((issue) => <p key={issue}>⚠ Product library: {issue}</p>)}
+                    </div>
+                  )}
+
+                  {assessment.sources.length > 0 && (
+                    <div className="qtl-source-row">
+                      <div>
+                        <strong>Sources used by these checks</strong>
+                        <span>Records are still proposed until you verify the cited QTL documents.</span>
+                      </div>
+                      <div className="qtl-source-links">
+                        {assessment.sources.map((source) =>
+                          source.url ? (
+                            <a key={source.id} href={source.url} target="_blank" rel="noreferrer" title={source.locator ?? undefined}>
+                              {source.title} ↗
+                            </a>
+                          ) : null,
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {product && (
                     <div className="qtl-source-row">

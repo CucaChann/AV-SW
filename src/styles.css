@@ -1951,6 +1951,17 @@ button:focus-visible,
   text-decoration: underline;
 }
 
+.qtl-source-row > .qtl-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.qtl-source-row > .qtl-source-links a {
+  white-space: nowrap;
+}
+
 .qtl-family-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

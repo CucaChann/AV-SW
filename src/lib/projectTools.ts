@@ -413,7 +413,9 @@ export function qtlRunWarnings(run: QtlRun) {
   if ((run.fixtureQty ?? 1) <= 0) warnings.push("Fixture quantity must be greater than zero.");
   for (const mismatch of qtlPsuMismatches(run)) warnings.push(`PSU family mismatch: ${mismatch}`);
   if (clampReservePct(run.reservePct) === 0) {
-    warnings.push("No design reserve: the PSU candidate is sized at 100% of its rating. Set a reserve per QTL loading guidance.");
+    warnings.push(
+      "No design reserve is applied, so the supply may be loaded to 100% of its rating. Set the project's reserve policy; no QTL source is cited for a specific value.",
+    );
   }
   return warnings;
 }
