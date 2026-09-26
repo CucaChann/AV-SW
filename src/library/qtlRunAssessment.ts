@@ -49,6 +49,8 @@ export type QtlPowerAssessment = {
   covered: boolean;
   familyName: string | null;
   result: PowerSupplyGroupingResult | null;
+  controlModeConfirmed: boolean;
+  unresolvedControlMethods: string[];
   note: string;
 };
 
@@ -236,6 +238,8 @@ function assessPower(input: QtlRunAssessmentInput) {
         covered: false,
         familyName: null,
         result: null,
+        controlModeConfirmed: false,
+        unresolvedControlMethods: [],
         note:
           "The selected PSU family has not been migrated into the source-backed QTL library yet. Capacity remains planning-only.",
       } satisfies QtlPowerAssessment,
@@ -251,6 +255,8 @@ function assessPower(input: QtlRunAssessmentInput) {
         covered: true,
         familyName: null,
         result: null,
+        controlModeConfirmed: false,
+        unresolvedControlMethods: control.methods,
         note:
           "QZ is selected, but the entered control text does not identify a sourced QZ-PRO or QZ-ND variant. Select/enter a specific phase, 0-10V or non-dimming control before AV-SW treats the PSU as checked.",
       } satisfies QtlPowerAssessment,
@@ -291,6 +297,8 @@ function assessPower(input: QtlRunAssessmentInput) {
         covered: true,
         familyName: selection.familyName,
         result: null,
+        controlModeConfirmed: control.methods.length === 1,
+        unresolvedControlMethods: control.methods.length > 1 ? control.methods : [],
         note: reason,
       } satisfies QtlPowerAssessment,
       refs,
@@ -318,6 +326,8 @@ function assessPower(input: QtlRunAssessmentInput) {
       covered: true,
       familyName: selection.familyName,
       result,
+      controlModeConfirmed: control.methods.length === 1,
+      unresolvedControlMethods: control.methods.length > 1 ? control.methods : [],
       note: result.explanation + controlNote,
     } satisfies QtlPowerAssessment,
     refs: [...refs, ...result.sources],
